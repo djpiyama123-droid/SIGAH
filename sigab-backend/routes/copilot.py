@@ -17,9 +17,10 @@ import base64
 import json
 from datetime import date
 
-from config import get_db, GEMMA_MODEL
+from config import get_db, GEMMA_MODEL, IA_STRATEGY
 from auth.dependencies import get_current_user
 from services import gemma_service
+from services.ia_provider import ia_provider
 from services.reliability_service import obtener_metricas_fiabilidad
 
 router = APIRouter()
@@ -71,6 +72,19 @@ async def estado_ollama(user: dict = Depends(get_current_user)):
     """Verifica si Ollama está corriendo y si Gemma está disponible."""
     resultado = await gemma_service.verificar_ollama()
     return resultado
+
+
+@router.get("/edge-health")
+async def edge_health(user: dict = Depends(get_current_user)):
+    """
+    Estado detallado del nodo edge IA (Lenovo ThinkCentre / Ollama).
+    Incluye latencia, modelo cargado en memoria, y proveedor efectivo
+    (edge | cloud) según la estrategia activa.
+
+    Úsalo desde el Dashboard para mostrar el semáforo del nodo edge.
+    """
+    estado = await ia_provider.edge_health()
+    return estado
 
 
 @router.post("/chat")

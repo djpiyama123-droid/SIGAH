@@ -9,7 +9,9 @@ Secciones:
   - JWT:               Secreto, algoritmo, TTL de acceso y refresh
   - PUBLIC_BASE_URL:   URL embebida en QRs (IP LAN en producción)
   - CORS_EXTRA:        Orígenes adicionales para celulares en LAN
-  - OLLAMA/GEMMA:      IA local vía Ollama (Gemma 4B / Qwen 7B)
+  - OLLAMA/GEMMA:      IA local vía Ollama (Gemma 4B / Qwen 7B) — nodo edge Lenovo ThinkCentre
+  - MINIMAX:           Fallback IA en la nube (MiniMax API) cuando el edge no responde
+  - IA_STRATEGY:       auto | local | cloud — estrategia de selección de proveedor IA
   - OCR:               Umbral de confianza y API key de Gemini
 """
 import aiomysql
@@ -46,11 +48,26 @@ _cors_env = os.getenv("SIGAB_CORS_EXTRA", "")
 _cors_lan = ["http://192.168.1.125:5173", "http://192.168.1.125:5174"]
 CORS_EXTRA = [*_cors_lan, *[o.strip() for o in _cors_env.split(",") if o.strip()]]
 
-# ── IA Local (Qwen / Gemma via Ollama) ────────────────────────────
-# Ollama se instala en el mismo servidor (Lenovo ThinkCentre) y expone :11434
+# ── IA Local — Nodo Edge (Lenovo ThinkCentre / Ollama) ───────────
+# Ollama corre en el servidor on-premise del hospital y expone :11434.
+# SIGAB_OLLAMA_HOST debe apuntar a la IP del ThinkCentre en la LAN cuando
+# el backend corra en otro nodo (ej. "http://192.168.1.125:11434").
 OLLAMA_HOST = os.getenv("SIGAB_OLLAMA_HOST", "http://localhost:11434")
 GEMMA_MODEL = os.getenv("SIGAB_GEMMA_MODEL", "gemma3:4b")
 QWEN_MODEL = os.getenv("SIGAB_QWEN_MODEL", "qwen2.5:7b")
+
+# ── IA Cloud Fallback (MiniMax API) ──────────────────────────────
+# Usado automáticamente cuando el nodo edge Ollama no está disponible.
+# Requiere SIGAB_MINIMAX_API_KEY en producción.
+MINIMAX_API_KEY = os.getenv("SIGAB_MINIMAX_API_KEY", "")
+MINIMAX_BASE_URL = os.getenv("SIGAB_MINIMAX_BASE_URL", "https://api.minimax.io/v1")
+MINIMAX_MODEL = os.getenv("SIGAB_MINIMAX_MODEL", "MiniMax-Text-01")
+
+# ── Estrategia de proveedor IA ────────────────────────────────────
+# auto  → intenta edge local primero, cae a cloud si no responde (default)
+# local → solo edge Ollama, sin fallback (ahorra tokens/costo)
+# cloud → solo MiniMax cloud (útil para pruebas o mantenimiento del edge)
+IA_STRATEGY = os.getenv("SIGAB_IA_STRATEGY", "auto")
 
 # ── OCR Pipeline Config ──────────────────────────────────────────
 OCR_CONFIDENCE_THRESHOLD = float(os.getenv("SIGAB_OCR_CONFIDENCE", "0.85"))
