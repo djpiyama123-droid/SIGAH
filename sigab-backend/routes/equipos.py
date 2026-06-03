@@ -264,7 +264,7 @@ async def subir_imagen_equipo(
 
 
 @router.get("/{equipo_id}/historial")
-async def historial_equipo(equipo_id: int, session: AsyncSession = Depends(get_async_session)):
+async def historial_equipo(equipo_id: int, session: AsyncSession = Depends(get_async_session), _user: dict = Depends(get_current_user)):
     """Devuelve historial completo de órdenes y traslados para el panel de Ficha Técnica."""
     from models.orden_servicio import EVIDENCIA_OS
     
