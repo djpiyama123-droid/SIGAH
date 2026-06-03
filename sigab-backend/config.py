@@ -9,7 +9,8 @@ Secciones:
   - JWT:               Secreto, algoritmo, TTL de acceso y refresh
   - PUBLIC_BASE_URL:   URL embebida en QRs (IP LAN en producción)
   - CORS_EXTRA:        Orígenes adicionales para celulares en LAN
-  - OLLAMA/GEMMA:      IA local vía Ollama (Gemma 4B / Qwen 7B)
+  - OLLAMA/GEMMA:      IA local vía Ollama (Gemma 4B / Qwen 7B) — nodo edge
+  - MINIMAX:           IA nube (fallback cuando Ollama no está disponible)
   - OCR:               Umbral de confianza y API key de Gemini
 """
 import aiomysql
@@ -56,6 +57,14 @@ QWEN_MODEL = os.getenv("SIGAB_QWEN_MODEL", "qwen2.5:7b")
 OCR_CONFIDENCE_THRESHOLD = float(os.getenv("SIGAB_OCR_CONFIDENCE", "0.85"))
 OCR_MIN_WORDS_THRESHOLD = int(os.getenv("SIGAB_OCR_MIN_WORDS", "5"))
 GEMINI_API_KEY = os.getenv("SIGAB_GEMINI_API_KEY", "")
+
+# ── IA Nube — MiniMax (fallback cuando Ollama/edge no está disponible) ──
+# Configura SIGAB_MINIMAX_API_KEY en producción para habilitar fallback nube.
+# Sin esta clave los endpoints de IA devuelven error cuando Ollama está caído.
+# Referencia: https://www.minimax.io/platform/document/ChatCompletion%20v2
+MINIMAX_API_KEY = os.getenv("SIGAB_MINIMAX_API_KEY", "")
+MINIMAX_BASE_URL = os.getenv("SIGAB_MINIMAX_BASE_URL", "https://api.minimax.chat/v1")
+MINIMAX_MODEL = os.getenv("SIGAB_MINIMAX_MODEL", "MiniMax-Text-01")
 
 
 async def get_db():

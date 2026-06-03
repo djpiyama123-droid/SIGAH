@@ -3,13 +3,15 @@ SIGAB Copilot Router — IA Local Biomédica con Gemma/Ollama
 
 Endpoints:
   GET  /estado          → verifica Ollama + modelo disponible
-  POST /chat            → chat streaming SSE
+  GET  /salud-edge      → estado completo edge+nube (circuit-breaker, modo activo)
+  POST /chat            → chat streaming SSE (edge → fallback MiniMax)
   POST /diagnostico     → análisis de falla estructurado (no streaming)
   POST /causa-raiz      → sugerencia causa raíz para Tecnovigilancia
   GET  /resumen-ia      → resumen ejecutivo narrativo del día
-  POST /vision          → análisis de imagen multimodal (Gemma 4)
+  POST /vision          → análisis de imagen multimodal (Gemma 4, solo edge)
 """
 
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 import aiomysql
@@ -17,7 +19,7 @@ import base64
 import json
 from datetime import date
 
-from config import get_db, GEMMA_MODEL
+from config import get_db, GEMMA_MODEL, MINIMAX_API_KEY, MINIMAX_MODEL, MINIMAX_BASE_URL
 from auth.dependencies import get_current_user
 from services import gemma_service
 from services.reliability_service import obtener_metricas_fiabilidad
@@ -71,6 +73,44 @@ async def estado_ollama(user: dict = Depends(get_current_user)):
     """Verifica si Ollama está corriendo y si Gemma está disponible."""
     resultado = await gemma_service.verificar_ollama()
     return resultado
+
+
+@router.get("/salud-edge")
+async def salud_edge(user: dict = Depends(get_current_user)):
+    """
+    Estado completo de la capa IA: nodo edge (Ollama) + fallback nube (MiniMax).
+    Útil para el panel de monitoreo y para diagnosticar por qué el Copilot usa nube.
+
+    Respuesta:
+      edge.activo        → Ollama responde en este momento
+      nube.configurada   → SIGAB_MINIMAX_API_KEY está establecida
+      modo_activo        → proveedor que se usaría en la próxima petición
+    """
+    edge_info, modo = await asyncio.gather(
+        gemma_service.verificar_ollama(),
+        gemma_service.proveedor_activo(),
+    )
+
+    nube_configurada = bool(MINIMAX_API_KEY)
+
+    return {
+        "ok": True,
+        "edge": {
+            "activo": edge_info.get("ollama_activo", False),
+            "host": edge_info.get("host", "http://localhost:11434"),
+            "modelo": GEMMA_MODEL,
+            "modelo_disponible": edge_info.get("modelo_disponible", False),
+            "modelos_instalados": edge_info.get("modelos_instalados", []),
+            "error": edge_info.get("error"),
+        },
+        "nube": {
+            "configurada": nube_configurada,
+            "proveedor": "MiniMax",
+            "modelo": MINIMAX_MODEL if nube_configurada else None,
+            "url_base": MINIMAX_BASE_URL if nube_configurada else None,
+        },
+        "modo_activo": modo,
+    }
 
 
 @router.post("/chat")
