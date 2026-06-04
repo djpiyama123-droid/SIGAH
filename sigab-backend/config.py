@@ -52,6 +52,14 @@ OLLAMA_HOST = os.getenv("SIGAB_OLLAMA_HOST", "http://localhost:11434")
 GEMMA_MODEL = os.getenv("SIGAB_GEMMA_MODEL", "gemma3:4b")
 QWEN_MODEL = os.getenv("SIGAB_QWEN_MODEL", "qwen2.5:7b")
 
+# ── IA Cloud Fallback (MiniMax) ───────────────────────────────────
+# Cuando Ollama edge no está disponible, el copilot usa MiniMax cloud como respaldo.
+# Configurar SIGAB_IA_FALLBACK=0 para deshabilitar el fallback.
+MINIMAX_API_KEY = os.getenv("SIGAB_MINIMAX_API_KEY", "")
+MINIMAX_MODEL = os.getenv("SIGAB_MINIMAX_MODEL", "abab6.5s-chat")
+MINIMAX_BASE_URL = os.getenv("SIGAB_MINIMAX_BASE_URL", "https://api.minimaxi.chat/v1")
+IA_FALLBACK_ENABLED = os.getenv("SIGAB_IA_FALLBACK", "1") == "1"
+
 # ── OCR Pipeline Config ──────────────────────────────────────────
 OCR_CONFIDENCE_THRESHOLD = float(os.getenv("SIGAB_OCR_CONFIDENCE", "0.85"))
 OCR_MIN_WORDS_THRESHOLD = int(os.getenv("SIGAB_OCR_MIN_WORDS", "5"))

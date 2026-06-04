@@ -15,7 +15,8 @@ import httpx
 import json
 import base64
 from typing import AsyncGenerator
-from config import OLLAMA_HOST, GEMMA_MODEL
+from config import OLLAMA_HOST, GEMMA_MODEL, IA_FALLBACK_ENABLED
+from services import ia_provider
 
 # ── Prompt de sistema ─────────────────────────────────────────────
 SYSTEM_PROMPT_BASE = """Eres SIGAB Copilot, el asistente de inteligencia artificial biomédica del Sistema Integral de Gestión de Activos Biomédicos (SIGAB) del Hospital General Regional No. 1 del IMSS en Tijuana, Baja California, México.
@@ -114,31 +115,24 @@ Evento adverso en análisis:
 
 async def verificar_ollama() -> dict:
     """Verifica si Ollama está corriendo y si el modelo está disponible."""
-    try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            resp = await client.get(f"{OLLAMA_HOST}/api/tags")
-            if resp.status_code == 200:
-                data = resp.json()
-                modelos = [m["name"] for m in data.get("models", [])]
-                modelo_disponible = any(
-                    GEMMA_MODEL.split(":")[0] in m for m in modelos
-                )
-                return {
-                    "ok": True,
-                    "ollama_activo": True,
-                    "modelo": GEMMA_MODEL,
-                    "modelo_disponible": modelo_disponible,
-                    "modelos_instalados": modelos,
-                }
-    except Exception as e:
+    edge = await ia_provider.verificar_edge()
+    if edge["disponible"]:
+        ia_provider.registrar_uso("edge")
         return {
-            "ok": False,
-            "ollama_activo": False,
-            "error": str(e),
+            "ok": True,
+            "ollama_activo": True,
             "modelo": GEMMA_MODEL,
-            "modelo_disponible": False,
-            "modelos_instalados": [],
+            "modelo_disponible": edge.get("modelo_cargado", False),
+            "modelos_instalados": edge.get("modelos_instalados", []),
         }
+    return {
+        "ok": False,
+        "ollama_activo": False,
+        "error": edge.get("error", "sin respuesta"),
+        "modelo": GEMMA_MODEL,
+        "modelo_disponible": False,
+        "modelos_instalados": [],
+    }
 
 
 async def chat_stream(
@@ -174,6 +168,7 @@ async def chat_stream(
                     yield f"data: {json.dumps({'error': f'Ollama error {response.status_code}', 'done': True})}\n\n"
                     return
 
+                ia_provider.registrar_uso("edge")
                 async for line in response.aiter_lines():
                     if not line.strip():
                         continue
@@ -181,16 +176,19 @@ async def chat_stream(
                         data = json.loads(line)
                         token = data.get("message", {}).get("content", "")
                         done = data.get("done", False)
-                        yield f"data: {json.dumps({'token': token, 'done': done})}\n\n"
+                        yield f"data: {json.dumps({'token': token, 'done': done, 'proveedor': 'edge'})}\n\n"
                         if done:
                             break
                     except json.JSONDecodeError:
                         continue
 
     except httpx.ConnectError:
-        yield (
-            f"data: {json.dumps({'error': 'Ollama no está corriendo. Inicia Ollama en el servidor.', 'done': True})}\n\n"
-        )
+        if IA_FALLBACK_ENABLED:
+            yield f"data: {json.dumps({'token': '', 'done': False, 'proveedor': 'cloud', 'aviso': 'Nodo edge sin respuesta — usando respaldo MiniMax cloud'})}\n\n"
+            async for raw in ia_provider.chat_stream_minimax(messages, system_prompt):
+                yield f"data: {raw}\n\n"
+        else:
+            yield f"data: {json.dumps({'error': 'Ollama no está corriendo. Inicia Ollama en el servidor edge.', 'done': True})}\n\n"
     except Exception as e:
         yield f"data: {json.dumps({'error': str(e), 'done': True})}\n\n"
 
@@ -219,10 +217,16 @@ async def analizar_no_stream(prompt_user: str, contexto: dict = None) -> str:
         async with httpx.AsyncClient(timeout=90) as client:
             resp = await client.post(f"{OLLAMA_HOST}/api/chat", json=payload)
             resp.raise_for_status()
+            ia_provider.registrar_uso("edge")
             data = resp.json()
             return data.get("message", {}).get("content", "")
     except httpx.ConnectError:
-        return "Error: Ollama no está disponible. Verifica que el servicio esté corriendo en el servidor."
+        if IA_FALLBACK_ENABLED:
+            return await ia_provider.analizar_minimax(
+                [{"role": "user", "content": prompt_user}],
+                system_prompt,
+            )
+        return "Error: Ollama no está disponible. Verifica que el servicio esté corriendo en el servidor edge."
     except Exception as e:
         return f"Error al consultar Gemma: {str(e)}"
 

@@ -19,7 +19,7 @@ from datetime import date
 
 from config import get_db, GEMMA_MODEL
 from auth.dependencies import get_current_user
-from services import gemma_service
+from services import gemma_service, ia_provider
 from services.reliability_service import obtener_metricas_fiabilidad
 
 router = APIRouter()
@@ -71,6 +71,16 @@ async def estado_ollama(user: dict = Depends(get_current_user)):
     """Verifica si Ollama está corriendo y si Gemma está disponible."""
     resultado = await gemma_service.verificar_ollama()
     return resultado
+
+
+@router.get("/proveedor")
+async def estado_proveedor_ia(user: dict = Depends(get_current_user)):
+    """
+    Estado del nodo edge IA y del respaldo cloud MiniMax.
+    Incluye telemetría de sesión (requests edge vs cloud, tokens cloud estimados).
+    Útil para monitoreo del ThinkCentre y control de costos de API cloud.
+    """
+    return await ia_provider.estado_proveedores()
 
 
 @router.post("/chat")
