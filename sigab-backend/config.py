@@ -46,11 +46,24 @@ _cors_env = os.getenv("SIGAB_CORS_EXTRA", "")
 _cors_lan = ["http://192.168.1.125:5173", "http://192.168.1.125:5174"]
 CORS_EXTRA = [*_cors_lan, *[o.strip() for o in _cors_env.split(",") if o.strip()]]
 
-# ── IA Local (Qwen / Gemma via Ollama) ────────────────────────────
+# ── IA Local (Qwen / Gemma via Ollama — nodo edge Lenovo ThinkCentre) ─────────
 # Ollama se instala en el mismo servidor (Lenovo ThinkCentre) y expone :11434
 OLLAMA_HOST = os.getenv("SIGAB_OLLAMA_HOST", "http://localhost:11434")
 GEMMA_MODEL = os.getenv("SIGAB_GEMMA_MODEL", "gemma3:4b")
 QWEN_MODEL = os.getenv("SIGAB_QWEN_MODEL", "qwen2.5:7b")
+
+# ── IA Cloud Fallback (MiniMax) ──────────────────────────────────
+# Se usa cuando Ollama/edge no está disponible (failover automático).
+# Requiere SIGAB_MINIMAX_API_KEY en producción.
+# API docs: https://platform.minimaxi.com/document/ChatCompletion%20v2
+MINIMAX_API_KEY = os.getenv("SIGAB_MINIMAX_API_KEY", "")
+MINIMAX_API_HOST = os.getenv("SIGAB_MINIMAX_API_HOST", "https://api.minimax.chat/v1")
+MINIMAX_MODEL = os.getenv("SIGAB_MINIMAX_MODEL", "MiniMax-Text-01")
+# Modo de selección de proveedor IA:
+#   "local"  → solo Ollama/edge (error si no está disponible)
+#   "cloud"  → solo MiniMax cloud (requiere SIGAB_MINIMAX_API_KEY)
+#   "auto"   → edge primero, MiniMax como fallback si edge falla
+AI_PROVIDER = os.getenv("SIGAB_AI_PROVIDER", "auto")
 
 # ── OCR Pipeline Config ──────────────────────────────────────────
 OCR_CONFIDENCE_THRESHOLD = float(os.getenv("SIGAB_OCR_CONFIDENCE", "0.85"))
