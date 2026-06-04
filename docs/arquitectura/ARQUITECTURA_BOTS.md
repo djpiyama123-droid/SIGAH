@@ -237,7 +237,41 @@ hermes-bot/
 
 ---
 
-## 7. Bloqueadores / pendientes antes de codificar
+## 7. Análisis del hardware on-premise candidato (ex-tomógrafo GE)
+
+**Identificación (por fotos):** computadora de **consola/reconstrucción de un tomógrafo
+GE de 16 cortes**. El panel trasero lo confirma: puertos `GSCB / TGP / HSP / HUB`,
+`GSCB X-ray Abort`, `Scan Monitor (DP)`, `Option Fibre RX`, y USB asignados a
+`Trackball / BarCodeReader / Service key`. Chasis Xeon con fuentes redundantes y ruedas.
+Dos slots rotulados `GPU` = tarjetas de **reconstrucción de imagen**, no de cómputo IA.
+
+### 7.1 Advertencias (verificar antes de comprometer arquitectura)
+
+| Punto | Riesgo / realidad |
+|-------|-------------------|
+| "500 TB" | Improbable en consola de TC 16 cortes (típico 0.5–4 TB). Verificar con `lsblk`. Almacenamiento ≠ cómputo IA. |
+| GPUs originales | Probables NVIDIA recon ~2012-2015 (VRAM 5-6 GB, sin bf16, sin soporte CUDA moderno) → **inservibles para LLMs**. |
+| BIOS/firmware | Posible BIOS custom GE / secure boot / disco con SO propietario → puede no arrancar Linux estándar. |
+| Factor decisivo IA | **VRAM y arquitectura de GPU**, no el Xeon. |
+
+### 7.2 Rol recomendado
+
+- ✅ **Servidor on-premise de SIGAH** (MySQL + FastAPI + bot WhatsApp + app). El Xeon y
+  las fuentes redundantes sirven. Datos sensibles no salen del hospital (NOM-016/240).
+- ⚠️ **IA local OSS:** solo rinde con **GPU moderna añadida** (≥16-24 GB VRAM, p. ej.
+  RTX 3090/4090) si chasis/PCIe/PSU lo permiten. Sin ella → solo modelos chicos
+  (Gemma/Qwen 7-8B cuantizados) en CPU, lento pero usable para tareas livianas.
+- ☁️ **Razonamiento pesado + Hermes → Minimax nube** (sin cambios al plan).
+
+### 7.3 Verificación pendiente
+
+Correr `scripts/diagnostico_hardware.sh` en la máquina (tras arrancar Linux) para obtener
+specs reales: CPU/flags AVX, RAM, discos, **GPU (modelo + VRAM + compute_cap)**, BIOS.
+La decisión final (servidor de app vs. servidor de IA local) se toma con esa salida.
+
+---
+
+## 8. Bloqueadores / pendientes antes de codificar
 
 1. ⏳ **Specs de la PC on-premise (ex-topógrafo):** CPU/Xeon, RAM, GPU/VRAM,
    almacenamiento (~500 TB), aceleración IA. Define el modelo OSS local.
