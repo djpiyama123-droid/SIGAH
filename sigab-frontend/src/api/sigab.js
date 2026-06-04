@@ -180,8 +180,9 @@ export const api = {
   descargarPdfNom240: (id) =>
     client.get(`/tecnovigilancia/${id}/pdf`, { responseType: 'blob' }),
 
-  // ── SIGAB Copilot (IA Local Gemma) ────────────────────────────
+  // ── SIGAB Copilot (IA Local Gemma + fallback MiniMax) ─────────
   getCopilotEstado: () => client.get('/copilot/estado'),
+  getCopilotEstadoEdge: () => client.get('/copilot/estado-edge'),
   getCopilotPromptsRapidos: () => client.get('/copilot/prompts-rapidos'),
   copilotDiagnostico: (data) => client.post('/copilot/diagnostico', data),
   copilotCausaRaiz: (data) => client.post('/copilot/causa-raiz', data),

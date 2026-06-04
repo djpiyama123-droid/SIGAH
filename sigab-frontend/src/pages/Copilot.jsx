@@ -274,6 +274,7 @@ export default function Copilot() {
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [ollamaStatus, setOllamaStatus] = useState(null);
+  const [edgeStatus, setEdgeStatus] = useState(null);
   const [promptsRapidos, setPromptsRapidos] = useState([]);
   const [resumenIA, setResumenIA] = useState(null);
   const [cargandoResumen, setCargandoResumen] = useState(false);
@@ -292,14 +293,29 @@ export default function Copilot() {
 
   useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
 
-  // Verificar estado Ollama al cargar
+  // Verificar estado de proveedores IA al cargar
   useEffect(() => {
     const checkStatus = async () => {
       try {
-        const status = await api.getCopilotEstado();
-        setOllamaStatus(status);
+        // Estado detallado (edge + cloud) — nuevo endpoint
+        const edge = await api.getCopilotEstadoEdge();
+        setEdgeStatus(edge);
+        // Mantener compatibilidad con lógica legacy usando los mismos datos
+        setOllamaStatus({
+          ok: edge.edge?.status === 'online',
+          ollama_activo: edge.edge?.status === 'online',
+          modelo: edge.edge?.modelo,
+          modelo_disponible: edge.edge?.modelo_ok ?? false,
+          modelos_instalados: edge.edge?.modelos ?? [],
+        });
       } catch {
-        setOllamaStatus({ ok: false, ollama_activo: false });
+        // Fallback al endpoint legacy si el nuevo no está disponible
+        try {
+          const status = await api.getCopilotEstado();
+          setOllamaStatus(status);
+        } catch {
+          setOllamaStatus({ ok: false, ollama_activo: false });
+        }
       }
     };
     checkStatus();
@@ -478,20 +494,42 @@ Puedo ayudarte con:
   };
 
   const StatusBadge = () => {
-    if (!ollamaStatus) return <span className="text-xs text-slate-500">Verificando...</span>;
-    if (!ollamaStatus.ollama_activo) {
+    if (!ollamaStatus && !edgeStatus) {
+      return <span className="text-xs text-slate-500">Verificando...</span>;
+    }
+
+    const modo = edgeStatus?.modo_activo;
+
+    if (modo === 'edge') {
       return (
-        <span className="flex items-center gap-1.5 text-xs text-red-400">
-          <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
-          Ollama offline
+        <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+          <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+          Edge local · {edgeStatus.edge?.modelo}
         </span>
       );
     }
-    if (!ollamaStatus.modelo_disponible) {
+    if (modo === 'cloud') {
+      return (
+        <span className="flex items-center gap-1.5 text-xs text-sky-400">
+          <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-pulse" />
+          Nube (MiniMax) · fallback activo
+        </span>
+      );
+    }
+    if (modo === 'edge_sin_modelo') {
       return (
         <span className="flex items-center gap-1.5 text-xs text-orange-400">
           <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
-          Modelo no descargado
+          Edge activo · modelo no descargado
+        </span>
+      );
+    }
+    // sin_ia o estado legacy
+    if (!ollamaStatus?.ollama_activo) {
+      return (
+        <span className="flex items-center gap-1.5 text-xs text-red-400">
+          <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
+          Sin IA disponible
         </span>
       );
     }
@@ -532,12 +570,26 @@ Puedo ayudarte con:
         </div>
       </div>
 
-      {/* Warning si Ollama no está activo */}
-      {ollamaStatus && !ollamaStatus.ollama_activo && (
+      {/* Warning si edge offline pero nube activa */}
+      {edgeStatus?.modo_activo === 'cloud' && (
+        <div className="mb-4 bg-sky-900/20 border border-sky-500/40 rounded-xl p-4 text-sm flex-shrink-0">
+          <p className="text-sky-300 font-semibold">Modo fallback: usando MiniMax (nube)</p>
+          <p className="text-sky-400/80 text-xs mt-1">
+            El nodo edge (Ollama en Lenovo ThinkCentre) no está disponible. Las respuestas se generan via API MiniMax.
+            Para restaurar la IA local, inicia Ollama en el servidor:
+          </p>
+          <code className="block mt-2 bg-black/30 rounded p-2 text-xs text-sky-200 font-mono">
+            ollama serve &amp;&amp; ollama pull gemma3:4b
+          </code>
+        </div>
+      )}
+
+      {/* Warning si sin IA disponible */}
+      {(edgeStatus?.modo_activo === 'sin_ia' || (!edgeStatus && ollamaStatus && !ollamaStatus.ollama_activo)) && (
         <div className="mb-4 bg-orange-900/20 border border-orange-500/40 rounded-xl p-4 text-sm flex-shrink-0">
-          <p className="text-orange-300 font-semibold">Ollama no detectado</p>
+          <p className="text-orange-300 font-semibold">Sin IA disponible</p>
           <p className="text-orange-400/80 text-xs mt-1">
-            Para usar SIGAB Copilot, instala Ollama en el servidor (Lenovo ThinkCentre) y ejecuta:
+            Ollama (edge) offline y fallback MiniMax no configurado. Inicia Ollama:
           </p>
           <code className="block mt-2 bg-black/30 rounded p-2 text-xs text-orange-200 font-mono">
             ollama serve &amp;&amp; ollama pull gemma3:4b
@@ -545,14 +597,14 @@ Puedo ayudarte con:
         </div>
       )}
 
-      {/* Warning modelo no descargado */}
-      {ollamaStatus?.ollama_activo && !ollamaStatus?.modelo_disponible && (
+      {/* Warning modelo no descargado en edge */}
+      {(edgeStatus?.modo_activo === 'edge_sin_modelo' || (ollamaStatus?.ollama_activo && !ollamaStatus?.modelo_disponible)) && (
         <div className="mb-4 bg-yellow-900/20 border border-yellow-500/40 rounded-xl p-4 text-sm flex-shrink-0">
-          <p className="text-yellow-300 font-semibold">Modelo {ollamaStatus.modelo} no descargado</p>
+          <p className="text-yellow-300 font-semibold">Modelo {ollamaStatus?.modelo ?? edgeStatus?.edge?.modelo} no descargado</p>
           <code className="block mt-1 bg-black/30 rounded p-2 text-xs text-yellow-200 font-mono">
-            ollama pull {ollamaStatus.modelo}
+            ollama pull {ollamaStatus?.modelo ?? edgeStatus?.edge?.modelo}
           </code>
-          {ollamaStatus.modelos_instalados?.length > 0 && (
+          {ollamaStatus?.modelos_instalados?.length > 0 && (
             <p className="text-xs text-yellow-400/60 mt-1">
               Modelos disponibles: {ollamaStatus.modelos_instalados.join(', ')}
             </p>
@@ -676,26 +728,71 @@ Puedo ayudarte con:
             )}
           </div>
 
-          {/* Info del modelo */}
-          {ollamaStatus?.ollama_activo && (
-            <div className="p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl">
-              <p className="text-xs font-semibold text-slate-400 mb-2">Configuración del modelo</p>
-              <div className="space-y-1 text-[10px] text-slate-500">
-                <p>Modelo: <span className="text-slate-300 font-mono">{ollamaStatus.modelo}</span></p>
-                <p>Host: <span className="text-slate-300 font-mono">localhost:11434</span></p>
-                <p>Modo: <span className="text-emerald-400">100% on-premise</span></p>
-                <p>Datos: <span className="text-emerald-400">No salen del servidor</span></p>
+          {/* Info de proveedores IA */}
+          {edgeStatus ? (
+            <div className="p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl space-y-3">
+              <p className="text-xs font-semibold text-slate-400">Proveedores IA</p>
+
+              {/* Edge */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    edgeStatus.edge?.status === 'online' ? 'bg-emerald-400' : 'bg-slate-600'
+                  }`} />
+                  <p className="text-[10px] font-semibold text-slate-300">Nodo Edge (Lenovo)</p>
+                  {edgeStatus.modo_activo === 'edge' && (
+                    <span className="text-[9px] bg-emerald-700/50 text-emerald-300 px-1 rounded">ACTIVO</span>
+                  )}
+                </div>
+                <div className="space-y-0.5 text-[10px] text-slate-500 pl-3">
+                  <p>Modelo: <span className="text-slate-300 font-mono">{edgeStatus.edge?.modelo}</span></p>
+                  <p>Estado: <span className={edgeStatus.edge?.status === 'online' ? 'text-emerald-400' : 'text-red-400'}>{edgeStatus.edge?.status}</span></p>
+                  {edgeStatus.edge?.latencia_ms != null && (
+                    <p>Latencia: <span className="text-slate-300">{edgeStatus.edge.latencia_ms} ms</span></p>
+                  )}
+                </div>
               </div>
-              {ollamaStatus.modelos_instalados?.length > 0 && (
-                <div className="mt-2">
-                  <p className="text-[10px] text-slate-500 mb-1">Modelos instalados:</p>
-                  {ollamaStatus.modelos_instalados.map(m => (
+
+              {/* Cloud fallback */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    edgeStatus.cloud?.status === 'online' ? 'bg-sky-400' :
+                    edgeStatus.cloud?.status === 'no_key' ? 'bg-slate-600' : 'bg-amber-500'
+                  }`} />
+                  <p className="text-[10px] font-semibold text-slate-300">Nube Fallback (MiniMax)</p>
+                  {edgeStatus.modo_activo === 'cloud' && (
+                    <span className="text-[9px] bg-sky-700/50 text-sky-300 px-1 rounded">ACTIVO</span>
+                  )}
+                </div>
+                <div className="space-y-0.5 text-[10px] text-slate-500 pl-3">
+                  <p>Modelo: <span className="text-slate-300 font-mono">{edgeStatus.cloud?.modelo}</span></p>
+                  <p>Estado: <span className={
+                    edgeStatus.cloud?.status === 'online' ? 'text-sky-400' :
+                    edgeStatus.cloud?.status === 'no_key' ? 'text-slate-500' : 'text-amber-400'
+                  }>{edgeStatus.cloud?.status === 'no_key' ? 'sin clave API' : edgeStatus.cloud?.status}</span></p>
+                </div>
+              </div>
+
+              {edgeStatus.edge?.modelos?.length > 0 && (
+                <div>
+                  <p className="text-[10px] text-slate-500 mb-1">Modelos en edge:</p>
+                  {edgeStatus.edge.modelos.map(m => (
                     <span key={m} className="inline-block mr-1 mb-1 px-1.5 py-0.5 bg-slate-700 text-slate-400 text-[9px] rounded font-mono">
                       {m}
                     </span>
                   ))}
                 </div>
               )}
+            </div>
+          ) : ollamaStatus?.ollama_activo && (
+            <div className="p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl">
+              <p className="text-xs font-semibold text-slate-400 mb-2">Configuración del modelo</p>
+              <div className="space-y-1 text-[10px] text-slate-500">
+                <p>Modelo: <span className="text-slate-300 font-mono">{ollamaStatus.modelo}</span></p>
+                <p>Host: <span className="text-slate-300 font-mono">localhost:11434</span></p>
+                <p>Modo: <span className="text-emerald-400">100% on-premise</span></p>
+              </div>
             </div>
           )}
         </div>

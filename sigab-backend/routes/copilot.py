@@ -4,6 +4,7 @@ SIGAB Copilot Router — IA Local Biomédica con Gemma/Ollama + MiniMax fallback
 Endpoints:
   GET  /estado          → verifica Ollama + modelo disponible (legacy)
   GET  /edge-status     → estado completo: nodo edge + cloud fallback
+  GET  /estado-edge     → alias de /edge-status (nuevo nombre)
   POST /chat            → chat streaming SSE (auto-route edge/cloud)
   POST /diagnostico     → análisis de falla estructurado (no streaming)
   POST /causa-raiz      → sugerencia causa raíz para Tecnovigilancia
@@ -21,6 +22,7 @@ from datetime import date
 from config import get_db, GEMMA_MODEL
 from auth.dependencies import get_current_user
 from services import gemma_service
+from services import ai_provider_service
 from services.reliability_service import obtener_metricas_fiabilidad
 
 router = APIRouter()
@@ -75,14 +77,16 @@ async def estado_ollama(user: dict = Depends(get_current_user)):
 
 
 @router.get("/edge-status")
+@router.get("/estado-edge")
 async def edge_status(user: dict = Depends(get_current_user)):
     """
     Estado completo del subsistema IA:
     - Nodo edge (Ollama en Lenovo ThinkCentre)
     - Cloud fallback (MiniMax)
-    - Proveedor activo según configuración AI_PROVIDER
+    - Modo activo: edge | cloud | edge_sin_modelo | sin_ia
+    Accesible en /edge-status (legacy) y /estado-edge (nuevo).
     """
-    return await gemma_service.verificar_edge()
+    return await ai_provider_service.get_providers_status()
 
 
 @router.post("/chat")
@@ -146,8 +150,11 @@ async def copilot_chat(
         except Exception:
             pass
 
+    from services.gemma_service import _build_system_prompt
+    system_prompt = _build_system_prompt(contexto)
+
     return StreamingResponse(
-        gemma_service.chat_stream(messages, contexto),
+        ai_provider_service.chat_stream(messages, system_prompt),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

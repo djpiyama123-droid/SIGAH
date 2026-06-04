@@ -10,6 +10,7 @@ Secciones:
   - PUBLIC_BASE_URL:   URL embebida en QRs (IP LAN en producción)
   - CORS_EXTRA:        Orígenes adicionales para celulares en LAN
   - OLLAMA/GEMMA:      IA local vía Ollama (Gemma 4B / Qwen 7B)
+  - MINIMAX:           API nube fallback cuando Ollama no está disponible
   - OCR:               Umbral de confianza y API key de Gemini
 """
 import aiomysql
@@ -55,15 +56,17 @@ QWEN_MODEL = os.getenv("SIGAB_QWEN_MODEL", "qwen2.5:7b")
 # ── IA Cloud Fallback (MiniMax) ──────────────────────────────────
 # Se usa cuando Ollama/edge no está disponible (failover automático).
 # Requiere SIGAB_MINIMAX_API_KEY en producción.
-# API docs: https://platform.minimaxi.com/document/ChatCompletion%20v2
 MINIMAX_API_KEY = os.getenv("SIGAB_MINIMAX_API_KEY", "")
-MINIMAX_API_HOST = os.getenv("SIGAB_MINIMAX_API_HOST", "https://api.minimax.chat/v1")
+MINIMAX_BASE_URL = os.getenv("SIGAB_MINIMAX_BASE_URL", "https://api.minimax.io/v1")
+# Alias legacy para compatibilidad con código anterior
+MINIMAX_API_HOST = MINIMAX_BASE_URL
 MINIMAX_MODEL = os.getenv("SIGAB_MINIMAX_MODEL", "MiniMax-Text-01")
 # Modo de selección de proveedor IA:
 #   "local"  → solo Ollama/edge (error si no está disponible)
 #   "cloud"  → solo MiniMax cloud (requiere SIGAB_MINIMAX_API_KEY)
 #   "auto"   → edge primero, MiniMax como fallback si edge falla
 AI_PROVIDER = os.getenv("SIGAB_AI_PROVIDER", "auto")
+AI_FALLBACK_ENABLED = AI_PROVIDER in ("auto", "cloud")
 
 # ── OCR Pipeline Config ──────────────────────────────────────────
 OCR_CONFIDENCE_THRESHOLD = float(os.getenv("SIGAB_OCR_CONFIDENCE", "0.85"))
