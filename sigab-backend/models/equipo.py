@@ -48,3 +48,11 @@ class Equipo(SQLModel, table=True):
     fecha_compra: Optional[date] = None
     numero_contrato_servicio: Optional[str] = None
     qr_token: Optional[str] = Field(default=None, index=True)
+    # ── Industria 4.0: UDI + escaneo 3D MIRACO Plus ──────────────────
+    # udi_code: código UDI-DI grabado con pistola láser (formato GS1-128 / GS1 DataMatrix)
+    udi_code: Optional[str] = Field(default=None, index=True)
+    # laser_grabado_at: fecha/hora en que se ejecutó el marcado láser
+    laser_grabado_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(mysql.DATETIME, nullable=True),
+    )

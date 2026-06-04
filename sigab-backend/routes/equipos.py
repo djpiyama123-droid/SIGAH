@@ -664,3 +664,71 @@ async def validar_poka_yoke(
             "serie": match_serie
         }
     }
+
+
+# ── UDI (Unique Device Identifier) — Industria 4.0 ────────────────
+
+@router.patch("/{equipo_id}/udi")
+async def registrar_udi(
+    equipo_id: int,
+    data: dict,
+    user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Registra o actualiza el código UDI grabado en un equipo biomédico.
+
+    El código UDI (Unique Device Identifier) es el identificador grabado
+    físicamente con la pistola láser, conforme a GS1-128 / GS1 DataMatrix.
+
+    Body:
+      {
+        "udi_code": "01084700010046001724103110GTIN...",
+        "laser_grabado_at": "2026-06-04T10:30:00"  (opcional, default=ahora)
+      }
+
+    Requiere permiso `edit_equipo`. Genera registro en log_actividad (NOM-016).
+    """
+    if not can(user, "edit_equipo"):
+        raise HTTPException(status_code=403, detail="Sin permiso para editar equipos")
+
+    udi_code = (data.get("udi_code") or "").strip()
+    if not udi_code:
+        raise HTTPException(status_code=400, detail="udi_code es requerido")
+
+    equipo = await session.get(Equipo, equipo_id)
+    if not equipo:
+        raise HTTPException(status_code=404, detail="Equipo no encontrado")
+
+    udi_anterior = equipo.udi_code
+    equipo.udi_code = udi_code
+    equipo.laser_grabado_at = (
+        datetime.fromisoformat(data["laser_grabado_at"])
+        if data.get("laser_grabado_at")
+        else datetime.utcnow()
+    )
+    equipo.updated_at = datetime.utcnow()
+
+    try:
+        await session.commit()
+    except Exception as exc:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al guardar UDI: {exc}")
+
+    # Audit trail NOM-016
+    await AuditService.log_event(
+        usuario_id=user["id"],
+        accion="udi_grabado",
+        entidad="equipos",
+        entidad_id=equipo_id,
+        datos={"udi_code": udi_code, "udi_anterior": udi_anterior},
+        session=session,
+    )
+
+    return {
+        "ok": True,
+        "equipo_id": equipo_id,
+        "udi_code": udi_code,
+        "laser_grabado_at": equipo.laser_grabado_at.isoformat(),
+        "mensaje": "Código UDI registrado correctamente",
+    }
