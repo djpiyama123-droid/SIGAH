@@ -57,6 +57,16 @@ OCR_CONFIDENCE_THRESHOLD = float(os.getenv("SIGAB_OCR_CONFIDENCE", "0.85"))
 OCR_MIN_WORDS_THRESHOLD = int(os.getenv("SIGAB_OCR_MIN_WORDS", "5"))
 GEMINI_API_KEY = os.getenv("SIGAB_GEMINI_API_KEY", "")
 
+# ── Fallback IA Nube (MiniMax) ────────────────────────────────────
+# Activado automáticamente cuando Ollama/edge no responde.
+# Configurar SIGAB_MINIMAX_API_KEY en producción (jamás en código).
+MINIMAX_API_KEY = os.getenv("SIGAB_MINIMAX_API_KEY", "")
+MINIMAX_API_URL = os.getenv("SIGAB_MINIMAX_API_URL", "https://api.minimax.chat/v1")
+MINIMAX_GROUP_ID = os.getenv("SIGAB_MINIMAX_GROUP_ID", "")
+MINIMAX_MODEL = os.getenv("SIGAB_MINIMAX_MODEL", "abab6.5s-chat")
+# Deshabilitar fallback en instalaciones 100% offline: SIGAB_AI_FALLBACK_ENABLED=false
+AI_FALLBACK_ENABLED = os.getenv("SIGAB_AI_FALLBACK_ENABLED", "true").lower() in ("1", "true", "yes")
+
 
 async def get_db():
     conn = await aiomysql.connect(**DB_CONFIG)

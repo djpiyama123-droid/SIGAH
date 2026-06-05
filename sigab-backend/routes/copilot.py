@@ -1,8 +1,9 @@
 """
-SIGAB Copilot Router — IA Local Biomédica con Gemma/Ollama
+SIGAB Copilot Router — IA Local Biomédica con Gemma/Ollama + fallback MiniMax
 
 Endpoints:
   GET  /estado          → verifica Ollama + modelo disponible
+  GET  /edge-status     → healthcheck completo nodo edge + fallback nube (WS-3)
   POST /chat            → chat streaming SSE
   POST /diagnostico     → análisis de falla estructurado (no streaming)
   POST /causa-raiz      → sugerencia causa raíz para Tecnovigilancia
@@ -19,7 +20,7 @@ from datetime import date
 
 from config import get_db, GEMMA_MODEL
 from auth.dependencies import get_current_user
-from services import gemma_service
+from services import gemma_service, ai_provider
 from services.reliability_service import obtener_metricas_fiabilidad
 
 router = APIRouter()
@@ -71,6 +72,23 @@ async def estado_ollama(user: dict = Depends(get_current_user)):
     """Verifica si Ollama está corriendo y si Gemma está disponible."""
     resultado = await gemma_service.verificar_ollama()
     return resultado
+
+
+@router.get("/edge-status")
+async def edge_status(user: dict = Depends(get_current_user)):
+    """
+    Healthcheck del nodo edge de IA (Industria 4.0 — WS-3).
+
+    Retorna estado del nodo edge Lenovo ThinkCentre + Ollama y del fallback MiniMax.
+    Latencia de respuesta del edge incluida para monitoreo en Dashboard.
+
+    Respuesta:
+      proveedor_activo: 'ollama_local' | 'minimax_cloud' | 'unavailable'
+      nodo_edge: {activo, url, modelo, latencia_ms, hardware}
+      fallback_nube: {configurado, proveedor, modelo}
+      diagnostico_ms: tiempo total del healthcheck
+    """
+    return await ai_provider.edge_status()
 
 
 @router.post("/chat")
