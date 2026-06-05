@@ -47,8 +47,9 @@ _cors_env = os.getenv("SIGAB_CORS_EXTRA", "")
 _cors_lan = ["http://192.168.1.125:5173", "http://192.168.1.125:5174"]
 CORS_EXTRA = [*_cors_lan, *[o.strip() for o in _cors_env.split(",") if o.strip()]]
 
-# ── IA Local (Qwen / Gemma via Ollama) ────────────────────────────
-# Ollama se instala en el mismo servidor (Lenovo ThinkCentre) y expone :11434
+# ── IA Local (Qwen / Gemma via Ollama) — EDGE NODE PRIMARIO ──────
+# Ollama corre en el Lenovo ThinkCentre M720q on-premise del hospital.
+# Proveedor primario: privacidad total, sin costo variable por token.
 OLLAMA_HOST = os.getenv("SIGAB_OLLAMA_HOST", "http://localhost:11434")
 GEMMA_MODEL = os.getenv("SIGAB_GEMMA_MODEL", "gemma3:4b")
 QWEN_MODEL = os.getenv("SIGAB_QWEN_MODEL", "qwen2.5:7b")

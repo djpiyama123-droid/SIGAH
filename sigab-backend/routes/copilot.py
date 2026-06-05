@@ -68,7 +68,14 @@ async def _get_resumen_db(conn) -> dict:
 
 @router.get("/estado")
 async def estado_ollama(user: dict = Depends(get_current_user)):
-    """Verifica si Ollama está corriendo y si Gemma está disponible."""
+    """
+    Verifica estado del nodo edge IA (Ollama) y del fallback MiniMax.
+    Campos clave:
+      - ollama_activo:     bool (compatibilidad con frontend existente)
+      - proveedor_activo:  "edge_local" | "cloud_minimax" | "no_disponible"
+      - edge.online:       bool — Ollama responde en el ThinkCentre
+      - fallback.configurado: bool — SIGAB_MINIMAX_API_KEY presente
+    """
     resultado = await gemma_service.verificar_ollama()
     return resultado
 
