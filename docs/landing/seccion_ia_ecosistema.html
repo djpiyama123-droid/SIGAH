@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIGAH — Sección IA del ecosistema (drop-in)</title>
+<!--
+  ════════════════════════════════════════════════════════════════════════
+  SECCIÓN DROP-IN: "¿Cómo funciona la IA en SIGAH?"
+  ────────────────────────────────────────────────────────────────────────
+  • Para integrar en la landing real: copia el bloque <section class="sigah-ia">…</section>
+    y mueve el contenido de <style> a tu hoja de estilos.
+  • La paleta vive 100% en variables CSS (:root .sigah-ia). Cambia esas 8-10
+    variables para igualar la paleta exacta de tu landing (azul IMSS, etc.).
+  • Sin build, sin dependencias. Iconos SVG inline (no emojis). Light + Dark.
+  ════════════════════════════════════════════════════════════════════════
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  /* ===== Tokens (AJUSTAR para igualar la landing) ===== */
+  .sigah-ia{
+    --ia-primary:#006CB7;        /* azul IMSS (marca) */
+    --ia-primary-700:#00518A;
+    --ia-local:#059669;          /* emerald-600 — on-premise / datos sensibles */
+    --ia-cloud:#0EA5E9;          /* sky-500 — nube Minimax */
+    --ia-accent:#D97706;         /* amber-600 — CTA / acentos */
+    --ia-danger:#DC2626;         /* red-600 — estados críticos */
+    --ia-ink:#0F172A;            /* slate-900 — texto */
+    --ia-muted:#475569;          /* slate-600 — texto secundario */
+    --ia-bg:#F8FAFC;             /* slate-50 — fondo sección */
+    --ia-surface:#FFFFFF;        /* tarjetas */
+    --ia-border:#E2E8F0;         /* slate-200 */
+    --ia-shadow:0 1px 2px rgba(15,23,42,.04),0 8px 24px rgba(15,23,42,.06);
+
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    background:var(--ia-bg);
+    color:var(--ia-ink);
+    padding:clamp(2.5rem,5vw,5rem) clamp(1rem,4vw,2rem);
+  }
+  @media (prefers-color-scheme: dark){
+    .sigah-ia{
+      --ia-primary:#3B9BE0; --ia-primary-700:#69B4E8;
+      --ia-local:#34D399; --ia-cloud:#38BDF8; --ia-accent:#FBBF24; --ia-danger:#F87171;
+      --ia-ink:#E2E8F0; --ia-muted:#94A3B8;
+      --ia-bg:#0B1220; --ia-surface:#111A2B; --ia-border:#1E2A41;
+      --ia-shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  .sigah-ia *{box-sizing:border-box}
+  .sigah-ia .wrap{max-width:1120px;margin:0 auto}
+
+  /* ===== Encabezado ===== */
+  .sigah-ia .eyebrow{
+    display:inline-flex;align-items:center;gap:.5rem;
+    font-size:.8rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--ia-primary);background:color-mix(in srgb,var(--ia-primary) 12%,transparent);
+    padding:.4rem .8rem;border-radius:999px;margin-bottom:1rem;
+  }
+  .sigah-ia h2{
+    font-size:clamp(1.6rem,3.5vw,2.4rem);line-height:1.15;font-weight:700;
+    margin:0 0 .75rem;letter-spacing:-.02em;
+  }
+  .sigah-ia .lead{
+    font-family:'Source Sans 3',sans-serif;
+    font-size:clamp(1rem,1.6vw,1.15rem);line-height:1.65;color:var(--ia-muted);
+    max-width:60ch;margin:0 0 2.5rem;
+  }
+
+  /* ===== Diagrama de flujo ===== */
+  .sigah-ia .flow{
+    display:grid;gap:1rem;align-items:stretch;
+    grid-template-columns:1fr;margin-bottom:1rem;
+  }
+  @media(min-width:880px){
+    .sigah-ia .flow{grid-template-columns:1fr auto 1fr auto 1fr;align-items:center}
+  }
+  .sigah-ia .node{
+    background:var(--ia-surface);border:1px solid var(--ia-border);border-radius:16px;
+    padding:1.1rem;box-shadow:var(--ia-shadow);height:100%;
+  }
+  .sigah-ia .node h3{display:flex;align-items:center;gap:.55rem;font-size:1rem;font-weight:600;margin:0 0 .6rem}
+  .sigah-ia .node .ico{flex:0 0 auto;width:34px;height:34px;border-radius:9px;display:grid;place-items:center}
+  .sigah-ia .node ul{margin:0;padding-left:0;list-style:none;display:grid;gap:.45rem}
+  .sigah-ia .node li{display:flex;gap:.5rem;font-size:.9rem;line-height:1.45;color:var(--ia-muted)}
+  .sigah-ia .node li svg{flex:0 0 auto;margin-top:.15rem;color:var(--ia-primary)}
+
+  .sigah-ia .ico-entrada{background:color-mix(in srgb,var(--ia-primary) 14%,transparent);color:var(--ia-primary)}
+  .sigah-ia .ico-router{background:color-mix(in srgb,var(--ia-accent) 16%,transparent);color:var(--ia-accent)}
+  .sigah-ia .ico-local{background:color-mix(in srgb,var(--ia-local) 16%,transparent);color:var(--ia-local)}
+  .sigah-ia .ico-cloud{background:color-mix(in srgb,var(--ia-cloud) 16%,transparent);color:var(--ia-cloud)}
+
+  /* Router central destacado */
+  .sigah-ia .node--router{border-color:color-mix(in srgb,var(--ia-accent) 45%,var(--ia-border));}
+  .sigah-ia .badge{display:inline-block;font-size:.7rem;font-weight:600;color:var(--ia-accent);
+    background:color-mix(in srgb,var(--ia-accent) 12%,transparent);padding:.15rem .5rem;border-radius:6px;margin-top:.6rem}
+
+  /* Conector (flecha) */
+  .sigah-ia .arrow{display:grid;place-items:center;color:var(--ia-border)}
+  .sigah-ia .arrow svg{width:34px;height:34px}
+  @media(max-width:879px){ .sigah-ia .arrow{transform:rotate(90deg);height:28px} }
+
+  /* Columna de procesamiento dividida (local + nube) */
+  .sigah-ia .split{display:grid;gap:1rem}
+
+  /* ===== Tabla de ruteo ===== */
+  .sigah-ia .routing{
+    background:var(--ia-surface);border:1px solid var(--ia-border);border-radius:16px;
+    box-shadow:var(--ia-shadow);overflow:hidden;margin:1.5rem 0 2.5rem;
+  }
+  .sigah-ia .routing .rhead{
+    display:grid;grid-template-columns:1.4fr 1fr 1.2fr;gap:.5rem;padding:.85rem 1.1rem;
+    background:color-mix(in srgb,var(--ia-primary) 8%,transparent);
+    font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--ia-primary-700);
+  }
+  .sigah-ia .routing .rrow{
+    display:grid;grid-template-columns:1.4fr 1fr 1.2fr;gap:.5rem;padding:.85rem 1.1rem;
+    border-top:1px solid var(--ia-border);font-size:.9rem;align-items:center;
+  }
+  .sigah-ia .routing .rrow span:first-child{color:var(--ia-ink);font-weight:500}
+  .sigah-ia .routing .rrow span{color:var(--ia-muted)}
+  .sigah-ia .pill{display:inline-flex;align-items:center;gap:.35rem;font-size:.78rem;font-weight:600;padding:.2rem .55rem;border-radius:999px}
+  .sigah-ia .pill--local{color:var(--ia-local);background:color-mix(in srgb,var(--ia-local) 14%,transparent)}
+  .sigah-ia .pill--cloud{color:var(--ia-cloud);background:color-mix(in srgb,var(--ia-cloud) 16%,transparent)}
+  @media(max-width:639px){
+    .sigah-ia .routing .rhead{display:none}
+    .sigah-ia .routing .rrow{grid-template-columns:1fr;gap:.3rem}
+  }
+
+  /* ===== Tarjetas de capacidades ===== */
+  .sigah-ia .cards{display:grid;gap:1rem;grid-template-columns:1fr}
+  @media(min-width:640px){.sigah-ia .cards{grid-template-columns:1fr 1fr}}
+  @media(min-width:980px){.sigah-ia .cards{grid-template-columns:repeat(4,1fr)}}
+  .sigah-ia .card{
+    background:var(--ia-surface);border:1px solid var(--ia-border);border-radius:16px;
+    padding:1.25rem;box-shadow:var(--ia-shadow);transition:transform .2s ease,border-color .2s ease;
+  }
+  @media(hover:hover){.sigah-ia .card:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--ia-primary) 40%,var(--ia-border))}}
+  @media(prefers-reduced-motion:reduce){.sigah-ia .card{transition:none}.sigah-ia .card:hover{transform:none}}
+  .sigah-ia .card .chip{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;margin-bottom:.85rem}
+  .sigah-ia .card h4{font-size:1.02rem;font-weight:600;margin:0 0 .4rem}
+  .sigah-ia .card p{font-family:'Source Sans 3',sans-serif;font-size:.92rem;line-height:1.55;color:var(--ia-muted);margin:0}
+
+  /* ===== CTA ===== */
+  .sigah-ia .cta{
+    margin-top:2.5rem;display:flex;flex-wrap:wrap;gap:.85rem;align-items:center;
+    background:linear-gradient(120deg,color-mix(in srgb,var(--ia-primary) 10%,var(--ia-surface)),var(--ia-surface));
+    border:1px solid var(--ia-border);border-radius:16px;padding:1.4rem 1.5rem;
+  }
+  .sigah-ia .cta p{margin:0;flex:1 1 320px;font-size:.98rem;color:var(--ia-muted)}
+  .sigah-ia .cta strong{color:var(--ia-ink)}
+  .sigah-ia .btn{
+    display:inline-flex;align-items:center;gap:.5rem;cursor:pointer;text-decoration:none;
+    font-weight:600;font-size:.95rem;padding:.7rem 1.2rem;border-radius:10px;border:1px solid transparent;
+    transition:filter .15s ease;
+  }
+  .sigah-ia .btn:focus-visible{outline:3px solid color-mix(in srgb,var(--ia-primary) 55%,transparent);outline-offset:2px}
+  .sigah-ia .btn--primary{background:var(--ia-primary);color:#fff}
+  .sigah-ia .btn--primary:hover{filter:brightness(1.07)}
+  .sigah-ia .btn--ghost{background:transparent;color:var(--ia-primary);border-color:color-mix(in srgb,var(--ia-primary) 40%,var(--ia-border))}
+</style>
+</head>
+<body>
+
+<!-- ╔══════════════ COPIAR DE AQUÍ ══════════════╗ -->
+<section class="sigah-ia" aria-labelledby="ia-title">
+  <div class="wrap">
+
+    <span class="eyebrow">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v1a3 3 0 0 0-3 3 3 3 0 0 0 0 6 3 3 0 0 0 3 3v1a3 3 0 0 0 6 0v-1a3 3 0 0 0 3-3 3 3 0 0 0 0-6 3 3 0 0 0-3-3V5a3 3 0 0 0-3-3Z"/></svg>
+      Inteligencia Artificial · Híbrida y soberana
+    </span>
+
+    <h2 id="ia-title">¿Cómo funciona la IA en SIGAH?</h2>
+    <p class="lead">
+      SIGAH combina <strong>inteligencia local dentro del hospital</strong> con un
+      <strong>modelo de frontera en la nube</strong>. Las tareas se resuelven con agentes que
+      buscan, razonan y actúan — sin que los datos clínicos sensibles salgan de sus instalaciones.
+    </p>
+
+    <!-- Diagrama de flujo -->
+    <div class="flow" role="img" aria-label="Flujo: el personal del hospital interactúa por WhatsApp y QR; SIGAH enruta cada petición hacia el servidor local on-premise para datos sensibles, o hacia la nube Minimax M3 para razonamiento pesado.">
+      <!-- Entrada -->
+      <div class="node">
+        <h3><span class="ico ico-entrada"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg></span>Personal del hospital</h3>
+        <ul>
+          <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Reporta fallas por <strong>WhatsApp</strong> (texto, audio, foto)</li>
+          <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM21 14v7M17 21h4"/></svg>Escanea el <strong>QR</strong> del equipo y pregunta</li>
+          <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Consulta alarmas y dudas del equipo</li>
+        </ul>
+      </div>
+
+      <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+
+      <!-- Router -->
+      <div class="node node--router">
+        <h3><span class="ico ico-router"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6m0 0 3-3m-3 3L9 5"/><rect x="3" y="8" width="18" height="6" rx="2"/><path d="M7 18v3M12 14v7M17 18v3"/></svg></span>SIGAH · Router de IA</h3>
+        <ul>
+          <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4M3 7l2 2 4-4M13 6h8M13 12h8M13 18h8"/></svg>Clasifica cada petición</li>
+          <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>Decide <strong>local vs. nube</strong> según sensibilidad</li>
+          <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 15h6"/></svg>Audita todo (NOM-016)</li>
+        </ul>
+        <span class="badge">Punto único de control</span>
+      </div>
+
+      <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+
+      <!-- Procesamiento dividido -->
+      <div class="split">
+        <div class="node">
+          <h3><span class="ico ico-local"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="8" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/><path d="M7 8h.01M7 17h.01"/></svg></span>Local · On-premise</h3>
+          <ul>
+            <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>Servidor <strong>GE Xeon</strong> en el hospital</li>
+            <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 5v2M12 17v2M5 12h2M17 12h2"/></svg>Modelos <strong>open-source</strong> (Gemma/Qwen)</li>
+            <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Datos del paciente <strong>nunca salen</strong></li>
+          </ul>
+        </div>
+        <div class="node">
+          <h3><span class="ico ico-cloud"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 0 0 .5-8.97A6 6 0 0 0 6.34 9 4.5 4.5 0 0 0 7 18h10.5Z"/></svg></span>Nube · Minimax M3</h3>
+          <ul>
+            <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Busca <strong>manuales</strong> en internet</li>
+            <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>Analiza <strong>imágenes y video</strong> (multimodal)</li>
+            <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44A2.5 2.5 0 0 1 4.5 17 2.5 2.5 0 0 1 3 12.5a2.5 2.5 0 0 1 .5-4.5A2.5 2.5 0 0 1 7 4.5 2.5 2.5 0 0 1 9.5 2Z"/></svg>Razonamiento pesado y diagnóstico</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla de ruteo -->
+    <div class="routing" role="table" aria-label="Ruteo de peticiones de IA entre local y nube">
+      <div class="rhead" role="row">
+        <span role="columnheader">Tipo de petición</span>
+        <span role="columnheader">Procesa</span>
+        <span role="columnheader">Por qué</span>
+      </div>
+      <div class="rrow" role="row">
+        <span role="cell">Datos de paciente, series, contratos, historial clínico</span>
+        <span role="cell"><span class="pill pill--local">Local</span></span>
+        <span role="cell">No deben salir del hospital (NOM-016 / NOM-240 / ISO-13485)</span>
+      </div>
+      <div class="rrow" role="row">
+        <span role="cell">OCR y visión de formatos internos</span>
+        <span role="cell"><span class="pill pill--local">Local</span></span>
+        <span role="cell">Documentos internos del hospital</span>
+      </div>
+      <div class="rrow" role="row">
+        <span role="cell">Búsqueda de manuales y fichas públicas</span>
+        <span role="cell"><span class="pill pill--cloud">Nube</span></span>
+        <span role="cell">Información pública + razonamiento de frontera</span>
+      </div>
+      <div class="rrow" role="row">
+        <span role="cell">Diagnóstico complejo / análisis de foto-video</span>
+        <span role="cell"><span class="pill pill--cloud">Nube</span></span>
+        <span role="cell">Minimax M3 multimodal, contexto de 1M tokens</span>
+      </div>
+    </div>
+
+    <!-- Tarjetas de capacidades -->
+    <div class="cards">
+      <div class="card">
+        <div class="chip ico-router"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V4M9 4h6M9 14h.01M15 14h.01M9 18h6"/></svg></div>
+        <h4>Tareas agénticas</h4>
+        <p>Los agentes no solo responden: buscan en la base de datos, leen manuales, generan reportes y sugieren la mitigación de la alarma del equipo escaneado.</p>
+      </div>
+      <div class="card">
+        <div class="chip ico-entrada"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/></svg></div>
+        <h4>SIGAB Bot · WhatsApp</h4>
+        <p>Para médicos y personal hospitalario. Alta y baja de reportes por mensaje, audio o imagen, con contexto completo del equipo escaneado por QR.</p>
+      </div>
+      <div class="card">
+        <div class="chip ico-cloud"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4 20-7Z"/><path d="M22 2 11 13"/></svg></div>
+        <h4>Hermes Bot · Telegram</h4>
+        <p>El ingeniero de TI con IA. Vigila la plataforma y repara el backend o frontend si surge un error o se cae. Restringido a los superadministradores.</p>
+      </div>
+      <div class="card">
+        <div class="chip ico-local"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg></div>
+        <h4>Soberanía de datos</h4>
+        <p>La inteligencia local resuelve la mayoría de consultas dentro del hospital. La nube se usa solo para lo pesado, con tope de presupuesto. Sin sorpresas.</p>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta">
+      <p><strong>¿Listo para ver SIGAH en acción?</strong> Agenda una demostración y conoce cómo la IA híbrida reduce costos de nube, protege tus datos y acelera el mantenimiento biomédico.</p>
+      <a class="btn btn--primary" href="#demo">
+        Solicitar demo
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <a class="btn btn--ghost" href="#contacto">Hablar con ventas</a>
+    </div>
+
+  </div>
+</section>
+<!-- ╚══════════════ COPIAR HASTA AQUÍ ══════════════╝ -->
+
+</body>
+</html>
