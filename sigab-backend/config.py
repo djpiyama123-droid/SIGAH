@@ -9,7 +9,8 @@ Secciones:
   - JWT:               Secreto, algoritmo, TTL de acceso y refresh
   - PUBLIC_BASE_URL:   URL embebida en QRs (IP LAN en producción)
   - CORS_EXTRA:        Orígenes adicionales para celulares en LAN
-  - OLLAMA/GEMMA:      IA local vía Ollama (Gemma 4B / Qwen 7B)
+  - OLLAMA/GEMMA:      IA local vía Ollama (Gemma en edge Lenovo ThinkCentre)
+  - MINIMAX:           Cloud fallback (solo si el edge no responde)
   - OCR:               Umbral de confianza y API key de Gemini
 """
 import aiomysql
@@ -51,6 +52,16 @@ CORS_EXTRA = [*_cors_lan, *[o.strip() for o in _cors_env.split(",") if o.strip()
 OLLAMA_HOST = os.getenv("SIGAB_OLLAMA_HOST", "http://localhost:11434")
 GEMMA_MODEL = os.getenv("SIGAB_GEMMA_MODEL", "gemma3:4b")
 QWEN_MODEL = os.getenv("SIGAB_QWEN_MODEL", "qwen2.5:7b")
+
+# ── Cloud IA Fallback (MiniMax) ──────────────────────────────────
+# Activa SOLO si el edge Ollama no responde (latency-first, privacy-first).
+# Para activar: define SIGAB_MINIMAX_API_KEY en el entorno o .env
+MINIMAX_API_KEY = os.getenv("SIGAB_MINIMAX_API_KEY", "")
+MINIMAX_BASE_URL = os.getenv("SIGAB_MINIMAX_BASE_URL", "https://api.minimaxi.chat/v1")
+MINIMAX_MODEL = os.getenv("SIGAB_MINIMAX_MODEL", "MiniMax-Text-01")
+MINIMAX_TIMEOUT = int(os.getenv("SIGAB_MINIMAX_TIMEOUT", "60"))
+# Tiempo máximo para verificar si el edge responde antes de activar fallback
+EDGE_HEALTH_TIMEOUT = float(os.getenv("SIGAB_EDGE_HEALTH_TIMEOUT", "3.0"))
 
 # ── OCR Pipeline Config ──────────────────────────────────────────
 OCR_CONFIDENCE_THRESHOLD = float(os.getenv("SIGAB_OCR_CONFIDENCE", "0.85"))

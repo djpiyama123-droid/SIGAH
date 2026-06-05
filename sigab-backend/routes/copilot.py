@@ -19,7 +19,7 @@ from datetime import date
 
 from config import get_db, GEMMA_MODEL
 from auth.dependencies import get_current_user
-from services import gemma_service
+from services import gemma_service, ai_provider_service
 from services.reliability_service import obtener_metricas_fiabilidad
 
 router = APIRouter()
@@ -68,9 +68,8 @@ async def _get_resumen_db(conn) -> dict:
 
 @router.get("/estado")
 async def estado_ollama(user: dict = Depends(get_current_user)):
-    """Verifica si Ollama está corriendo y si Gemma está disponible."""
-    resultado = await gemma_service.verificar_ollama()
-    return resultado
+    """Verifica el proveedor IA activo: edge local (Ollama) y/o cloud fallback (MiniMax)."""
+    return await ai_provider_service.verificar_proveedor()
 
 
 @router.post("/chat")
@@ -135,7 +134,7 @@ async def copilot_chat(
             pass
 
     return StreamingResponse(
-        gemma_service.chat_stream(messages, contexto),
+        ai_provider_service.chat_stream(messages, contexto),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -199,7 +198,7 @@ async def diagnostico_falla(
                 contexto["historial_ordenes"] = ordenes
 
     prompt = gemma_service.prompt_diagnostico(falla, equipo_tipo, marca, modelo)
-    analisis = await gemma_service.analizar_no_stream(prompt, contexto)
+    analisis = await ai_provider_service.analizar_no_stream(prompt, contexto)
 
     return {
         "ok": True,
@@ -260,7 +259,7 @@ async def sugerir_causa_raiz(
     prompt = gemma_service.prompt_causa_raiz(
         dispositivo, tipo_evento, severidad, descripcion
     )
-    analisis = await gemma_service.analizar_no_stream(prompt, contexto)
+    analisis = await ai_provider_service.analizar_no_stream(prompt, contexto)
 
     return {
         "ok": True,
@@ -283,7 +282,7 @@ async def resumen_ejecutivo_ia(
     """
     datos = await _get_resumen_db(conn)
     prompt = gemma_service.prompt_resumen_diario(datos)
-    resumen = await gemma_service.analizar_no_stream(prompt)
+    resumen = await ai_provider_service.analizar_no_stream(prompt)
 
     return {
         "ok": True,
