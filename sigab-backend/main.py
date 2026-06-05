@@ -26,7 +26,7 @@ from routes import (
     tecnovigilancia, auditoria, checklists,
     almacen, metrologia, capacitaciones,
     auth as auth_routes,
-    ocr, events, casillas
+    ocr, events, casillas, edge_health
 )
 _COPILOT_ON = os.getenv("SIGAB_DISABLE_COPILOT", "0") != "1"
 if _COPILOT_ON:
@@ -81,6 +81,7 @@ app.include_router(metrologia.router, prefix="/api/metrologia", tags=["Metrolog�
 app.include_router(capacitaciones.router, prefix="/api/capacitaciones", tags=["Capacitación de Personal"])
 app.include_router(events.router, prefix="/api/v1/events", tags=["Eventos"])
 app.include_router(casillas.router, tags=["Casillas CENEVAL (Conservación)"])
+app.include_router(edge_health.router, prefix="/api/edge", tags=["Edge Node IA (Ollama + Fallback)"])
 
 
 @app.get("/health")

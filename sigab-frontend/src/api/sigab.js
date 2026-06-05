@@ -191,6 +191,9 @@ export const api = {
   // Ver: chatStreamUrl en la página Copilot
   getCopilotChatUrl: () => '/api/copilot/chat',
 
+  // ── Edge Node IA (Ollama local + fallback MiniMax) ────────────
+  getEdgeHealth: () => client.get('/edge/health'),
+
   // ── Almacén de Refacciones ─────────────────────────────────
   getAlmacen: (params = {}) => client.get('/almacen/', { params }),
   crearRefaccion: (data) => client.post('/almacen/', data),

@@ -274,6 +274,7 @@ export default function Copilot() {
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [ollamaStatus, setOllamaStatus] = useState(null);
+  const [edgeHealth, setEdgeHealth] = useState(null);
   const [promptsRapidos, setPromptsRapidos] = useState([]);
   const [resumenIA, setResumenIA] = useState(null);
   const [cargandoResumen, setCargandoResumen] = useState(false);
@@ -292,7 +293,7 @@ export default function Copilot() {
 
   useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
 
-  // Verificar estado Ollama al cargar
+  // Verificar estado Ollama + edge node al cargar
   useEffect(() => {
     const checkStatus = async () => {
       try {
@@ -300,6 +301,12 @@ export default function Copilot() {
         setOllamaStatus(status);
       } catch {
         setOllamaStatus({ ok: false, ollama_activo: false });
+      }
+      try {
+        const health = await api.getEdgeHealth();
+        setEdgeHealth(health);
+      } catch {
+        setEdgeHealth(null);
       }
     };
     checkStatus();
@@ -479,15 +486,26 @@ Puedo ayudarte con:
 
   const StatusBadge = () => {
     if (!ollamaStatus) return <span className="text-xs text-slate-500">Verificando...</span>;
-    if (!ollamaStatus.ollama_activo) {
+
+    const modo = edgeHealth?.modo_activo;
+
+    if (modo === 'edge' || ollamaStatus.ollama_activo) {
       return (
-        <span className="flex items-center gap-1.5 text-xs text-red-400">
-          <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
-          Ollama offline
+        <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+          <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+          {ollamaStatus.modelo || edgeHealth?.edge_modelo} · edge local
         </span>
       );
     }
-    if (!ollamaStatus.modelo_disponible) {
+    if (modo === 'nube') {
+      return (
+        <span className="flex items-center gap-1.5 text-xs text-blue-400">
+          <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
+          {edgeHealth?.fallback_modelo} · nube (fallback)
+        </span>
+      );
+    }
+    if (!ollamaStatus.modelo_disponible && ollamaStatus.ollama_activo) {
       return (
         <span className="flex items-center gap-1.5 text-xs text-orange-400">
           <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
@@ -496,9 +514,9 @@ Puedo ayudarte con:
       );
     }
     return (
-      <span className="flex items-center gap-1.5 text-xs text-emerald-400">
-        <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-        {ollamaStatus.modelo} · activo
+      <span className="flex items-center gap-1.5 text-xs text-red-400">
+        <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
+        sin IA disponible
       </span>
     );
   };
@@ -534,14 +552,34 @@ Puedo ayudarte con:
 
       {/* Warning si Ollama no está activo */}
       {ollamaStatus && !ollamaStatus.ollama_activo && (
-        <div className="mb-4 bg-orange-900/20 border border-orange-500/40 rounded-xl p-4 text-sm flex-shrink-0">
-          <p className="text-orange-300 font-semibold">Ollama no detectado</p>
-          <p className="text-orange-400/80 text-xs mt-1">
-            Para usar SIGAB Copilot, instala Ollama en el servidor (Lenovo ThinkCentre) y ejecuta:
-          </p>
-          <code className="block mt-2 bg-black/30 rounded p-2 text-xs text-orange-200 font-mono">
-            ollama serve &amp;&amp; ollama pull gemma3:4b
-          </code>
+        <div className={`mb-4 border rounded-xl p-4 text-sm flex-shrink-0 ${
+          edgeHealth?.fallback_nube
+            ? 'bg-blue-900/20 border-blue-500/40'
+            : 'bg-orange-900/20 border-orange-500/40'
+        }`}>
+          {edgeHealth?.fallback_nube ? (
+            <>
+              <p className="text-blue-300 font-semibold">Nodo edge offline — usando fallback nube ({edgeHealth.fallback_modelo})</p>
+              <p className="text-blue-400/80 text-xs mt-1">
+                Ollama no responde en el Lenovo ThinkCentre. El Copilot continúa operando vía MiniMax API.
+                Para restaurar el modo local ejecuta en el edge:
+              </p>
+              <code className="block mt-2 bg-black/30 rounded p-2 text-xs text-blue-200 font-mono">
+                ollama serve &amp;&amp; ollama pull gemma3:4b
+              </code>
+            </>
+          ) : (
+            <>
+              <p className="text-orange-300 font-semibold">Ollama no detectado — Copilot no disponible</p>
+              <p className="text-orange-400/80 text-xs mt-1">
+                Instala Ollama en el nodo edge (Lenovo ThinkCentre) o configura{' '}
+                <code className="bg-black/30 px-1 rounded">SIGAB_MINIMAX_API_KEY</code> para activar el fallback a nube.
+              </p>
+              <code className="block mt-2 bg-black/30 rounded p-2 text-xs text-orange-200 font-mono">
+                ollama serve &amp;&amp; ollama pull gemma3:4b
+              </code>
+            </>
+          )}
         </div>
       )}
 

@@ -9,7 +9,8 @@ Secciones:
   - JWT:               Secreto, algoritmo, TTL de acceso y refresh
   - PUBLIC_BASE_URL:   URL embebida en QRs (IP LAN en producción)
   - CORS_EXTRA:        Orígenes adicionales para celulares en LAN
-  - OLLAMA/GEMMA:      IA local vía Ollama (Gemma 4B / Qwen 7B)
+  - OLLAMA/GEMMA:      IA local vía Ollama (Gemma 4B / Qwen 7B) — nodo edge Lenovo
+  - MINIMAX:           Fallback cloud API (MiniMax) cuando Ollama no responde
   - OCR:               Umbral de confianza y API key de Gemini
 """
 import aiomysql
@@ -51,6 +52,14 @@ CORS_EXTRA = [*_cors_lan, *[o.strip() for o in _cors_env.split(",") if o.strip()
 OLLAMA_HOST = os.getenv("SIGAB_OLLAMA_HOST", "http://localhost:11434")
 GEMMA_MODEL = os.getenv("SIGAB_GEMMA_MODEL", "gemma3:4b")
 QWEN_MODEL = os.getenv("SIGAB_QWEN_MODEL", "qwen2.5:7b")
+
+# ── Fallback IA Nube (MiniMax) ────────────────────────────────────
+# Activo solo cuando SIGAB_MINIMAX_API_KEY está definido en .env.
+# Proporciona continuidad del Copilot cuando el nodo edge Lenovo no está disponible.
+# API compatible con OpenAI Chat Completions v1.
+MINIMAX_API_KEY = os.getenv("SIGAB_MINIMAX_API_KEY", "")
+MINIMAX_HOST = os.getenv("SIGAB_MINIMAX_HOST", "https://api.minimax.io/v1")
+MINIMAX_MODEL = os.getenv("SIGAB_MINIMAX_MODEL", "abab6.5s-chat")
 
 # ── OCR Pipeline Config ──────────────────────────────────────────
 OCR_CONFIDENCE_THRESHOLD = float(os.getenv("SIGAB_OCR_CONFIDENCE", "0.85"))
