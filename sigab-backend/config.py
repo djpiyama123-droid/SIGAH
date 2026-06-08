@@ -57,6 +57,15 @@ OCR_CONFIDENCE_THRESHOLD = float(os.getenv("SIGAB_OCR_CONFIDENCE", "0.85"))
 OCR_MIN_WORDS_THRESHOLD = int(os.getenv("SIGAB_OCR_MIN_WORDS", "5"))
 GEMINI_API_KEY = os.getenv("SIGAB_GEMINI_API_KEY", "")
 
+# ── IA en Nube — MiniMax (fallback cuando Ollama/edge no disponible) ─
+# El edge Lenovo ThinkCentre corre Ollama en :11434 (primario).
+# Cuando el edge no responde, SIGAB Copilot cae automáticamente a MiniMax.
+MINIMAX_API_KEY = os.getenv("SIGAB_MINIMAX_API_KEY", "")
+MINIMAX_BASE_URL = os.getenv("SIGAB_MINIMAX_BASE_URL", "https://api.minimax.io/v1")
+MINIMAX_MODEL = os.getenv("SIGAB_MINIMAX_MODEL", "MiniMax-Text-01")
+# Timeout del probe rápido al edge (segundos); si excede → fallback inmediato
+AI_EDGE_PROBE_TIMEOUT = int(os.getenv("SIGAB_AI_PROBE_TIMEOUT", "3"))
+
 
 async def get_db():
     conn = await aiomysql.connect(**DB_CONFIG)
