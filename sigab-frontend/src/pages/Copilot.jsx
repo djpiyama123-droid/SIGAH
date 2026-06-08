@@ -280,43 +280,48 @@ export default function Copilot() {
   const [showDiagnostico, setShowDiagnostico] = useState(false);
   const [showVision, setShowVision] = useState(false);
   const [contextoTipo, setContextoTipo] = useState('general');
+  const [proveedorActivo, setProveedorActivo] = useState(null);
 
   const messagesEndRef = useRef(null);
   const abortRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Scroll al último mensaje
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
   useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
 
-  // Verificar estado Ollama al cargar
   useEffect(() => {
     const checkStatus = async () => {
       try {
-        const status = await api.getCopilotEstado();
+        const status = await api.getCopilotEdgeEstado();
         setOllamaStatus(status);
+        setProveedorActivo(status.proveedor_activo);
       } catch {
-        setOllamaStatus({ ok: false, ollama_activo: false });
+        try {
+          const status = await api.getCopilotEstado();
+          setOllamaStatus(status);
+          setProveedorActivo(status.proveedor_activo || (status.ollama_activo ? 'edge_ollama' : 'ninguno'));
+        } catch {
+          setOllamaStatus({ ok: false, ollama_activo: false });
+          setProveedorActivo('ninguno');
+        }
       }
     };
     checkStatus();
 
-    // Cargar prompts rápidos
     api.getCopilotPromptsRapidos()
       .then(res => setPromptsRapidos(res.prompts || []))
       .catch(() => {});
   }, []);
 
-  // Mensaje de bienvenida
   useEffect(() => {
     setMessages([{
       role: 'assistant',
-      content: `¡Hola! Soy **SIGAB Copilot**, tu asistente de IA biomédica local.
+      content: `¡Hola! Soy **SIGAB Copilot**, tu asistente de IA biomédica.
 
-Estoy potenciado por **Gemma** ejecutándose directamente en el servidor del HGR No.1 — sin dependencias de nube, 100% on-premise.
+Opero con prioridad en el **nodo edge local** (Gemma en el Lenovo ThinkCentre del HGR No.1), con fallback automático a IA en nube si el nodo no está disponible.
 
 Puedo ayudarte con:
 - Diagnóstico de fallas en equipos médicos
@@ -479,26 +484,34 @@ Puedo ayudarte con:
 
   const StatusBadge = () => {
     if (!ollamaStatus) return <span className="text-xs text-slate-500">Verificando...</span>;
-    if (!ollamaStatus.ollama_activo) {
+    if (proveedorActivo === 'edge_ollama') {
       return (
-        <span className="flex items-center gap-1.5 text-xs text-red-400">
-          <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
-          Ollama offline
+        <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+          <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+          {ollamaStatus.modelo} · nodo edge activo
         </span>
       );
     }
-    if (!ollamaStatus.modelo_disponible) {
+    if (proveedorActivo === 'minimax_nube') {
+      return (
+        <span className="flex items-center gap-1.5 text-xs text-sky-400">
+          <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-pulse" />
+          MiniMax · fallback nube
+        </span>
+      );
+    }
+    if (ollamaStatus.ollama_activo && !ollamaStatus.modelo_disponible) {
       return (
         <span className="flex items-center gap-1.5 text-xs text-orange-400">
           <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
-          Modelo no descargado
+          Edge activo · modelo no descargado
         </span>
       );
     }
     return (
-      <span className="flex items-center gap-1.5 text-xs text-emerald-400">
-        <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-        {ollamaStatus.modelo} · activo
+      <span className="flex items-center gap-1.5 text-xs text-red-400">
+        <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
+        Edge offline · sin servicio
       </span>
     );
   };
@@ -513,7 +526,7 @@ Puedo ayudarte con:
             SIGAB Copilot
           </h1>
           <p className="text-sm text-slate-400 mt-0.5 flex items-center gap-2">
-            Asistente biomédico · IA local on-premise
+            Asistente biomédico · edge→nube
             <StatusBadge />
           </p>
         </div>
@@ -532,23 +545,40 @@ Puedo ayudarte con:
         </div>
       </div>
 
-      {/* Warning si Ollama no está activo */}
-      {ollamaStatus && !ollamaStatus.ollama_activo && (
-        <div className="mb-4 bg-orange-900/20 border border-orange-500/40 rounded-xl p-4 text-sm flex-shrink-0">
-          <p className="text-orange-300 font-semibold">Ollama no detectado</p>
-          <p className="text-orange-400/80 text-xs mt-1">
-            Para usar SIGAB Copilot, instala Ollama en el servidor (Lenovo ThinkCentre) y ejecuta:
+      {/* Nodo edge offline — fallback cloud activo */}
+      {proveedorActivo === 'minimax_nube' && (
+        <div className="mb-4 bg-sky-900/20 border border-sky-500/40 rounded-xl p-4 text-sm flex-shrink-0">
+          <p className="text-sky-300 font-semibold">Nodo edge no disponible — usando IA en nube (MiniMax)</p>
+          <p className="text-sky-400/80 text-xs mt-1">
+            El Copilot opera en modo fallback. Las consultas se envían a MiniMax API fuera del hospital.
+            Restaura Ollama en el ThinkCentre para volver a modo 100% on-premise.
           </p>
-          <code className="block mt-2 bg-black/30 rounded p-2 text-xs text-orange-200 font-mono">
+          <code className="block mt-2 bg-black/30 rounded p-2 text-xs text-sky-200 font-mono">
             ollama serve &amp;&amp; ollama pull gemma3:4b
           </code>
+        </div>
+      )}
+
+      {/* Nodo edge offline — sin fallback */}
+      {proveedorActivo === 'ninguno' && (
+        <div className="mb-4 bg-red-900/20 border border-red-500/40 rounded-xl p-4 text-sm flex-shrink-0">
+          <p className="text-red-300 font-semibold">Nodo edge offline — sin fallback configurado</p>
+          <p className="text-red-400/80 text-xs mt-1">
+            Ollama no responde. Para restaurar el servicio:
+          </p>
+          <code className="block mt-2 bg-black/30 rounded p-2 text-xs text-red-200 font-mono">
+            ollama serve &amp;&amp; ollama pull gemma3:4b
+          </code>
+          <p className="text-red-400/60 text-xs mt-2">
+            Alternativa: configura <span className="font-mono">SIGAB_MINIMAX_API_KEY</span> para activar fallback cloud.
+          </p>
         </div>
       )}
 
       {/* Warning modelo no descargado */}
       {ollamaStatus?.ollama_activo && !ollamaStatus?.modelo_disponible && (
         <div className="mb-4 bg-yellow-900/20 border border-yellow-500/40 rounded-xl p-4 text-sm flex-shrink-0">
-          <p className="text-yellow-300 font-semibold">Modelo {ollamaStatus.modelo} no descargado</p>
+          <p className="text-yellow-300 font-semibold">Modelo {ollamaStatus.modelo} no descargado en el nodo edge</p>
           <code className="block mt-1 bg-black/30 rounded p-2 text-xs text-yellow-200 font-mono">
             ollama pull {ollamaStatus.modelo}
           </code>
@@ -613,8 +643,9 @@ Puedo ayudarte con:
                 </button>
               )}
             </div>
-            <p className="text-[10px] text-slate-600 mt-1 text-center">
-              Shift+Enter para nueva línea · Enter para enviar · IA local — sin datos a la nube
+            <p className={`text-[10px] mt-1 text-center ${proveedorActivo === 'minimax_nube' ? 'text-sky-700' : 'text-slate-600'}`}>
+              Shift+Enter para nueva línea · Enter para enviar ·
+              {proveedorActivo === 'minimax_nube' ? ' Modo fallback nube (MiniMax)' : ' IA local — sin datos a la nube'}
             </p>
           </div>
         </div>
@@ -676,19 +707,32 @@ Puedo ayudarte con:
             )}
           </div>
 
-          {/* Info del modelo */}
-          {ollamaStatus?.ollama_activo && (
+          {/* Info del proveedor activo */}
+          {ollamaStatus && (
             <div className="p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl">
-              <p className="text-xs font-semibold text-slate-400 mb-2">Configuración del modelo</p>
+              <p className="text-xs font-semibold text-slate-400 mb-2">Proveedor IA activo</p>
               <div className="space-y-1 text-[10px] text-slate-500">
-                <p>Modelo: <span className="text-slate-300 font-mono">{ollamaStatus.modelo}</span></p>
-                <p>Host: <span className="text-slate-300 font-mono">localhost:11434</span></p>
-                <p>Modo: <span className="text-emerald-400">100% on-premise</span></p>
-                <p>Datos: <span className="text-emerald-400">No salen del servidor</span></p>
+                {proveedorActivo === 'edge_ollama' ? (
+                  <>
+                    <p>Proveedor: <span className="text-emerald-400 font-semibold">Nodo Edge</span></p>
+                    <p>Modelo: <span className="text-slate-300 font-mono">{ollamaStatus.modelo}</span></p>
+                    <p>Host: <span className="text-slate-300 font-mono">localhost:11434</span></p>
+                    <p>Privacidad: <span className="text-emerald-400">100% on-premise</span></p>
+                  </>
+                ) : proveedorActivo === 'minimax_nube' ? (
+                  <>
+                    <p>Proveedor: <span className="text-sky-400 font-semibold">MiniMax (nube)</span></p>
+                    <p>Modelo: <span className="text-slate-300 font-mono">{ollamaStatus?.fallback_minimax?.modelo}</span></p>
+                    <p>Privacidad: <span className="text-amber-400">Datos al proveedor</span></p>
+                    <p>Estado: <span className="text-sky-400">Fallback activo</span></p>
+                  </>
+                ) : (
+                  <p className="text-red-400">Sin proveedor disponible</p>
+                )}
               </div>
-              {ollamaStatus.modelos_instalados?.length > 0 && (
+              {proveedorActivo === 'edge_ollama' && ollamaStatus.modelos_instalados?.length > 0 && (
                 <div className="mt-2">
-                  <p className="text-[10px] text-slate-500 mb-1">Modelos instalados:</p>
+                  <p className="text-[10px] text-slate-500 mb-1">Modelos en edge:</p>
                   {ollamaStatus.modelos_instalados.map(m => (
                     <span key={m} className="inline-block mr-1 mb-1 px-1.5 py-0.5 bg-slate-700 text-slate-400 text-[9px] rounded font-mono">
                       {m}
