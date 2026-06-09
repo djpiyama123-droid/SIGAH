@@ -1,12 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Optional
-import aiomysql
-from config import get_db
 from auth.dependencies import get_current_user
-
-router = APIRouter()
-
-
 from sqlmodel import select, or_, func, update
 from sqlmodel.ext.asyncio.session import AsyncSession
 from database import get_async_session

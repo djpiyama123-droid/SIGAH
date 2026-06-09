@@ -44,7 +44,7 @@ async def registrar_calibracion(
         return {"ok": True, "id": cur.lastrowid}
 
 @router.get("/vencidas")
-async def calibraciones_vencidas(conn=Depends(get_db)):
+async def calibraciones_vencidas(user: dict = Depends(get_current_user), conn=Depends(get_db)):
     async with conn.cursor(aiomysql.DictCursor) as cur:
         await cur.execute("""
             SELECT m.*, e.nombre, e.serie 
