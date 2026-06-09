@@ -1,21 +1,33 @@
 """
-SIGAB Gemma Service — Interfaz asíncrona con Ollama (Gemma local on-premise)
+SIGAB Gemma Service — Capa IA con proveedor primario (Ollama/edge) y fallback nube (MiniMax)
 
-Ollama expone el API en http://localhost:11434
-Modelos soportados: gemma3:4b, gemma3:12b, gemma3:27b, gemma4 (cuando disponible)
+Proveedor primario  : Ollama en nodo edge Lenovo ThinkCentre (:11434) — 100 % on-premise
+Proveedor fallback  : MiniMax API (OpenAI-compatible) — activa si el edge no responde
 
-Referencia API Ollama:
-  POST /api/chat       -> chat con streaming
-  POST /api/generate   -> texto sin formato chat
-  GET  /api/tags       -> lista modelos instalados
-  GET  /api/ps         -> estado modelo cargado
+Flujo de selección:
+  1. _probe_edge()  → healthcheck rápido (AI_EDGE_PROBE_TIMEOUT segundos)
+  2. Si edge OK     → usa Ollama/Gemma (chat_stream / analizar_no_stream)
+  3. Si edge KO     → usa MiniMax API con el mismo system prompt SIGAB
+  4. Si MiniMax KO  → retorna mensaje de error descriptivo
+
+Configuración vía variables de entorno (ver config.py):
+  SIGAB_OLLAMA_HOST, SIGAB_GEMMA_MODEL          — edge
+  SIGAB_MINIMAX_API_KEY, SIGAB_MINIMAX_MODEL     — fallback nube
+  SIGAB_AI_PROBE_TIMEOUT                         — sensibilidad del probe (seg)
 """
 
 import httpx
 import json
 import base64
 from typing import AsyncGenerator
-from config import OLLAMA_HOST, GEMMA_MODEL
+from config import (
+    OLLAMA_HOST,
+    GEMMA_MODEL,
+    MINIMAX_API_KEY,
+    MINIMAX_BASE_URL,
+    MINIMAX_MODEL,
+    AI_EDGE_PROBE_TIMEOUT,
+)
 
 # ── Prompt de sistema ─────────────────────────────────────────────
 SYSTEM_PROMPT_BASE = """Eres SIGAB Copilot, el asistente de inteligencia artificial biomédica del Sistema Integral de Gestión de Activos Biomédicos (SIGAB) del Hospital General Regional No. 1 del IMSS en Tijuana, Baja California, México.
@@ -112,33 +124,133 @@ Evento adverso en análisis:
 
 # ── Funciones principales ─────────────────────────────────────────
 
+async def _probe_edge() -> bool:
+    """Probe rápido al nodo edge. Retorna True si Ollama responde antes del timeout."""
+    try:
+        async with httpx.AsyncClient(timeout=AI_EDGE_PROBE_TIMEOUT) as client:
+            resp = await client.get(f"{OLLAMA_HOST}/api/tags")
+            return resp.status_code == 200
+    except Exception:
+        return False
+
+
+async def _minimax_no_stream(messages_with_system: list) -> str:
+    """Llama MiniMax API (OpenAI-compatible) de forma no-streaming."""
+    if not MINIMAX_API_KEY:
+        return "Error: SIGAB_MINIMAX_API_KEY no configurada. El nodo edge no está disponible."
+
+    headers = {
+        "Authorization": f"Bearer {MINIMAX_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": MINIMAX_MODEL,
+        "messages": messages_with_system,
+        "stream": False,
+        "max_tokens": 1024,
+        "temperature": 0.5,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=90) as client:
+            resp = await client.post(
+                f"{MINIMAX_BASE_URL}/chat/completions",
+                headers=headers,
+                json=payload,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["choices"][0]["message"]["content"]
+    except httpx.HTTPStatusError as e:
+        return f"Error MiniMax API ({e.response.status_code}): {e.response.text[:200]}"
+    except Exception as e:
+        return f"Error al contactar MiniMax: {str(e)}"
+
+
+async def _minimax_stream(messages_with_system: list) -> AsyncGenerator[str, None]:
+    """Llama MiniMax API en streaming, emitiendo eventos SSE compatibles con el frontend."""
+    if not MINIMAX_API_KEY:
+        yield (
+            f"data: {json.dumps({'error': 'SIGAB_MINIMAX_API_KEY no configurada. Edge y nube no disponibles.', 'done': True})}\n\n"
+        )
+        return
+
+    headers = {
+        "Authorization": f"Bearer {MINIMAX_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": MINIMAX_MODEL,
+        "messages": messages_with_system,
+        "stream": True,
+        "max_tokens": 2048,
+        "temperature": 0.7,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            async with client.stream(
+                "POST",
+                f"{MINIMAX_BASE_URL}/chat/completions",
+                headers=headers,
+                json=payload,
+            ) as response:
+                if response.status_code != 200:
+                    yield f"data: {json.dumps({'error': f'MiniMax error {response.status_code}', 'done': True})}\n\n"
+                    return
+
+                async for line in response.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    chunk = line[6:]
+                    if chunk.strip() == "[DONE]":
+                        yield f"data: {json.dumps({'token': '', 'done': True})}\n\n"
+                        break
+                    try:
+                        data = json.loads(chunk)
+                        delta = data["choices"][0].get("delta", {})
+                        token = delta.get("content", "")
+                        finish = data["choices"][0].get("finish_reason")
+                        done = finish is not None
+                        yield f"data: {json.dumps({'token': token, 'done': done, 'proveedor': 'minimax'})}\n\n"
+                        if done:
+                            break
+                    except (json.JSONDecodeError, KeyError):
+                        continue
+
+    except Exception as e:
+        yield f"data: {json.dumps({'error': f'Error MiniMax streaming: {str(e)}', 'done': True})}\n\n"
+
+
 async def verificar_ollama() -> dict:
-    """Verifica si Ollama está corriendo y si el modelo está disponible."""
+    """Verifica estado del nodo edge (Ollama) y disponibilidad del fallback MiniMax."""
+    edge_ok = False
+    modelos = []
+    edge_error = None
+
     try:
         async with httpx.AsyncClient(timeout=5) as client:
             resp = await client.get(f"{OLLAMA_HOST}/api/tags")
             if resp.status_code == 200:
                 data = resp.json()
                 modelos = [m["name"] for m in data.get("models", [])]
-                modelo_disponible = any(
-                    GEMMA_MODEL.split(":")[0] in m for m in modelos
-                )
-                return {
-                    "ok": True,
-                    "ollama_activo": True,
-                    "modelo": GEMMA_MODEL,
-                    "modelo_disponible": modelo_disponible,
-                    "modelos_instalados": modelos,
-                }
+                edge_ok = True
     except Exception as e:
-        return {
-            "ok": False,
-            "ollama_activo": False,
-            "error": str(e),
-            "modelo": GEMMA_MODEL,
-            "modelo_disponible": False,
-            "modelos_instalados": [],
-        }
+        edge_error = str(e)
+
+    modelo_disponible = edge_ok and any(
+        GEMMA_MODEL.split(":")[0] in m for m in modelos
+    )
+
+    return {
+        "ok": edge_ok or bool(MINIMAX_API_KEY),
+        "ollama_activo": edge_ok,
+        "modelo": GEMMA_MODEL,
+        "modelo_disponible": modelo_disponible,
+        "modelos_instalados": modelos,
+        "edge_error": edge_error,
+        "proveedor_activo": "ollama_edge" if edge_ok else ("minimax_nube" if MINIMAX_API_KEY else "ninguno"),
+        "fallback_minimax_configurado": bool(MINIMAX_API_KEY),
+        "fallback_modelo": MINIMAX_MODEL if MINIMAX_API_KEY else None,
+    }
 
 
 async def chat_stream(
@@ -146,85 +258,83 @@ async def chat_stream(
     contexto: dict = None,
 ) -> AsyncGenerator[str, None]:
     """
-    Genera tokens en streaming desde Ollama/Gemma.
-    Yields líneas SSE: 'data: {"token":"...", "done": false}\n\n'
+    Genera tokens en streaming.
+    Intenta edge (Ollama) primero; si no responde cae a MiniMax nube.
+    Yields líneas SSE: 'data: {"token":"...", "done": false, "proveedor":"..."}\n\n'
     """
     system_prompt = _build_system_prompt(contexto or {})
+    messages_full = [{"role": "system", "content": system_prompt}, *messages]
 
-    payload = {
-        "model": GEMMA_MODEL,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            *messages,
-        ],
-        "stream": True,
-        "options": {
-            "temperature": 0.7,
-            "num_predict": 2048,
-            "top_p": 0.9,
-        },
-    }
+    edge_disponible = await _probe_edge()
 
-    try:
-        async with httpx.AsyncClient(timeout=120) as client:
-            async with client.stream(
-                "POST", f"{OLLAMA_HOST}/api/chat", json=payload
-            ) as response:
-                if response.status_code != 200:
-                    yield f"data: {json.dumps({'error': f'Ollama error {response.status_code}', 'done': True})}\n\n"
-                    return
+    if edge_disponible:
+        payload = {
+            "model": GEMMA_MODEL,
+            "messages": messages_full,
+            "stream": True,
+            "options": {"temperature": 0.7, "num_predict": 2048, "top_p": 0.9},
+        }
+        try:
+            async with httpx.AsyncClient(timeout=120) as client:
+                async with client.stream(
+                    "POST", f"{OLLAMA_HOST}/api/chat", json=payload
+                ) as response:
+                    if response.status_code != 200:
+                        yield f"data: {json.dumps({'error': f'Ollama error {response.status_code}', 'done': True})}\n\n"
+                        return
+                    async for line in response.aiter_lines():
+                        if not line.strip():
+                            continue
+                        try:
+                            data = json.loads(line)
+                            token = data.get("message", {}).get("content", "")
+                            done = data.get("done", False)
+                            yield f"data: {json.dumps({'token': token, 'done': done, 'proveedor': 'ollama_edge'})}\n\n"
+                            if done:
+                                break
+                        except json.JSONDecodeError:
+                            continue
+            return
+        except Exception:
+            pass  # Edge falló mid-stream — no es recuperable; el cliente ya recibió tokens parciales
 
-                async for line in response.aiter_lines():
-                    if not line.strip():
-                        continue
-                    try:
-                        data = json.loads(line)
-                        token = data.get("message", {}).get("content", "")
-                        done = data.get("done", False)
-                        yield f"data: {json.dumps({'token': token, 'done': done})}\n\n"
-                        if done:
-                            break
-                    except json.JSONDecodeError:
-                        continue
-
-    except httpx.ConnectError:
-        yield (
-            f"data: {json.dumps({'error': 'Ollama no está corriendo. Inicia Ollama en el servidor.', 'done': True})}\n\n"
-        )
-    except Exception as e:
-        yield f"data: {json.dumps({'error': str(e), 'done': True})}\n\n"
+    # Edge no disponible → fallback MiniMax
+    yield f"data: {json.dumps({'token': '', 'done': False, 'proveedor': 'minimax_nube', 'aviso': 'Edge no disponible — usando proveedor nube'})}\n\n"
+    async for chunk in _minimax_stream(messages_full):
+        yield chunk
 
 
 async def analizar_no_stream(prompt_user: str, contexto: dict = None) -> str:
     """
-    Llamada Gemma sin streaming — retorna texto completo.
+    Llamada sin streaming — retorna texto completo.
+    Intenta edge (Ollama) primero; si no responde cae a MiniMax nube.
     Usado para análisis internos (diagnóstico estructurado, resumen, causa raíz).
     """
     system_prompt = _build_system_prompt(contexto or {})
+    messages_full = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": prompt_user},
+    ]
 
-    payload = {
-        "model": GEMMA_MODEL,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt_user},
-        ],
-        "stream": False,
-        "options": {
-            "temperature": 0.5,
-            "num_predict": 1024,
-        },
-    }
+    edge_disponible = await _probe_edge()
 
-    try:
-        async with httpx.AsyncClient(timeout=90) as client:
-            resp = await client.post(f"{OLLAMA_HOST}/api/chat", json=payload)
-            resp.raise_for_status()
-            data = resp.json()
-            return data.get("message", {}).get("content", "")
-    except httpx.ConnectError:
-        return "Error: Ollama no está disponible. Verifica que el servicio esté corriendo en el servidor."
-    except Exception as e:
-        return f"Error al consultar Gemma: {str(e)}"
+    if edge_disponible:
+        payload = {
+            "model": GEMMA_MODEL,
+            "messages": messages_full,
+            "stream": False,
+            "options": {"temperature": 0.5, "num_predict": 1024},
+        }
+        try:
+            async with httpx.AsyncClient(timeout=90) as client:
+                resp = await client.post(f"{OLLAMA_HOST}/api/chat", json=payload)
+                resp.raise_for_status()
+                data = resp.json()
+                return data.get("message", {}).get("content", "")
+        except Exception:
+            pass  # Edge falló → continúa con fallback
+
+    return await _minimax_no_stream(messages_full)
 
 
 async def analizar_imagen(image_b64: str, pregunta: str) -> str:

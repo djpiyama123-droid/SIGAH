@@ -67,8 +67,15 @@ async def _get_resumen_db(conn) -> dict:
 # ── Endpoints ─────────────────────────────────────────────────────
 
 @router.get("/estado")
-async def estado_ollama(user: dict = Depends(get_current_user)):
-    """Verifica si Ollama está corriendo y si Gemma está disponible."""
+async def estado_proveedor_ia(user: dict = Depends(get_current_user)):
+    """
+    Verifica estado del nodo edge (Ollama/Gemma) y del fallback nube (MiniMax).
+    Campos de respuesta:
+      - proveedor_activo: "ollama_edge" | "minimax_nube" | "ninguno"
+      - ollama_activo: bool — edge Lenovo ThinkCentre responde
+      - fallback_minimax_configurado: bool — SIGAB_MINIMAX_API_KEY presente
+      - modelo / fallback_modelo: modelos en uso
+    """
     resultado = await gemma_service.verificar_ollama()
     return resultado
 
