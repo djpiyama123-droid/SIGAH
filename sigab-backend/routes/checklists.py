@@ -7,7 +7,7 @@ from services.audit_service import AuditService
 router = APIRouter()
 
 @router.get("/templates")
-async def get_checklist_templates(conn=Depends(get_db)):
+async def get_checklist_templates(user: dict = Depends(get_current_user), conn=Depends(get_db)):
     """Obtiene plantillas de checklists NOM-016."""
     async with conn.cursor(aiomysql.DictCursor) as cur:
         await cur.execute("SELECT * FROM nom016_checklists")
@@ -51,6 +51,7 @@ async def save_checklist_result(
 async def get_results(
     limit: int = 50,
     area_id: int = None,
+    user: dict = Depends(get_current_user),
     conn=Depends(get_db)
 ):
     """Lista resultados de auditorías NOM-016 previas."""
