@@ -73,6 +73,16 @@ async def estado_ollama(user: dict = Depends(get_current_user)):
     return resultado
 
 
+@router.get("/edge/estado")
+async def estado_edge_completo(user: dict = Depends(get_current_user)):
+    """
+    Healthcheck del nodo edge IA + fallback cloud.
+    Retorna proveedor_activo: 'edge_ollama' | 'minimax_nube' | 'ninguno'.
+    Compatible con el panel de estado en Copilot.jsx.
+    """
+    return await gemma_service.verificar_ollama()
+
+
 @router.post("/chat")
 async def copilot_chat(
     data: dict,

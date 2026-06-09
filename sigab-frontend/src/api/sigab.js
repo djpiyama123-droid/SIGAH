@@ -180,15 +180,15 @@ export const api = {
   descargarPdfNom240: (id) =>
     client.get(`/tecnovigilancia/${id}/pdf`, { responseType: 'blob' }),
 
-  // ── SIGAB Copilot (IA Local Gemma) ────────────────────────────
+  // ── SIGAB Copilot (IA Local Gemma + fallback MiniMax) ─────────
   getCopilotEstado: () => client.get('/copilot/estado'),
+  getCopilotEdgeEstado: () => client.get('/copilot/edge/estado'),
   getCopilotPromptsRapidos: () => client.get('/copilot/prompts-rapidos'),
   copilotDiagnostico: (data) => client.post('/copilot/diagnostico', data),
   copilotCausaRaiz: (data) => client.post('/copilot/causa-raiz', data),
   copilotResumenIa: () => client.get('/copilot/resumen-ia'),
   copilotVision: (data) => client.post('/copilot/vision', data),
   // El chat usa fetch nativo por streaming SSE (no axios)
-  // Ver: chatStreamUrl en la página Copilot
   getCopilotChatUrl: () => '/api/copilot/chat',
 
   // ── Almacén de Refacciones ─────────────────────────────────
