@@ -198,10 +198,10 @@ cp .env.example .env
 nano .env   # editar si hace falta
 
 # Valores mínimos típicos:
-# MYSQL_ROOT_PASSWORD=sigab_root_2026
+# MYSQL_ROOT_PASSWORD=${DB_ROOT_PASS}
 # MYSQL_DATABASE=sigab
 # MYSQL_USER=sigab_admin
-# MYSQL_PASSWORD=sigab_admin_2026
+# MYSQL_PASSWORD=${ADMIN_PASSWORD}
 # JWT_SECRET_KEY=<genera-uno-seguro>
 # OLLAMA_MODEL=gemma3:4b
 ```
@@ -268,7 +268,7 @@ docker exec sigab-backend python -m scripts.seed_demo
 
 # Login en el navegador:
 #   Usuario: ADMIN001
-#   Password: sigab_admin_2026
+#   Password: ${ADMIN_PASSWORD}
 ```
 
 ### 1.13 Validación final del sábado (10 min)

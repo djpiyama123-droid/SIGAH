@@ -40,13 +40,13 @@ sudo systemctl start mysql
 sudo systemctl enable mysql
 
 # Configurar contraseña de root
-sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'sigab_root_2026';"
+sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '${DB_ROOT_PASS}';"
 
 # Crear usuario y base de datos
-sudo mysql -u root -psigab_root_2026 -e "
+sudo mysql -u root -p${DB_ROOT_PASS} -e "
 CREATE DATABASE IF NOT EXISTS sigab CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS dummyequipomedicoimss CHARACTER SET utf8mb3;
-CREATE USER IF NOT EXISTS 'sigab_user'@'localhost' IDENTIFIED BY 'sigab_pass_2026';
+CREATE USER IF NOT EXISTS 'sigab_user'@'localhost' IDENTIFIED BY '${DB_PASS}';
 GRANT ALL PRIVILEGES ON sigab.* TO 'sigab_user'@'localhost';
 GRANT ALL PRIVILEGES ON dummyequipomedicoimss.* TO 'sigab_user'@'localhost';
 FLUSH PRIVILEGES;
@@ -59,14 +59,14 @@ FLUSH PRIVILEGES;
 cd ~/SIGAB
 
 # Esquema SIGAB (crea tablas del sistema)
-mysql -u sigab_user -psigab_pass_2026 sigab < database/sigab_schema_fresh.sql
+mysql -u sigab_user -p${DB_PASS} sigab < database/sigab_schema_fresh.sql
 
 # Migraciones adicionales (mapa, QR, etc.)
-mysql -u sigab_user -psigab_pass_2026 sigab < database/migrations/004_mapa_interactivo.sql
-mysql -u sigab_user -psigab_pass_2026 sigab < database/migrations/004_seed_hgr1.sql
+mysql -u sigab_user -p${DB_PASS} sigab < database/migrations/004_mapa_interactivo.sql
+mysql -u sigab_user -p${DB_PASS} sigab < database/migrations/004_seed_hgr1.sql
 
 # BD real del hospital (datos de equipos)
-mysql -u sigab_user -psigab_pass_2026 dummyequipomedicoimss < BaseDeDatosV2_190326.sql
+mysql -u sigab_user -p${DB_PASS} dummyequipomedicoimss < BaseDeDatosV2_190326.sql
 
 # Migrar datos reales a SIGAB
 pip3 install pymysql
@@ -119,7 +119,7 @@ cat > ~/SIGAB/sigab-backend/.env << 'EOF'
 SIGAB_DB_HOST=127.0.0.1
 SIGAB_DB_PORT=3306
 SIGAB_DB_USER=sigab_user
-SIGAB_DB_PASS=sigab_pass_2026
+SIGAB_DB_PASS=${DB_PASS}
 SIGAB_DB_NAME=sigab
 SIGAB_SSL_DISABLED=true
 SIGAB_JWT_SECRET=demo-hgr1-2026-secreto-cambiar-en-produccion

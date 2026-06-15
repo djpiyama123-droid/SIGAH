@@ -12,10 +12,10 @@ services:
     container_name: sigab-mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS:-sigab_root_2026}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS:?DB_ROOT_PASS requerida}
       MYSQL_DATABASE:      ${DB_NAME:-sigab}
       MYSQL_USER:          ${DB_USER:-sigab_user}
-      MYSQL_PASSWORD:      ${DB_PASS:-sigab_pass_2026}
+      MYSQL_PASSWORD:      ${DB_PASS:?DB_PASS requerida}
     ports:
       - "3306:3306"
     volumes:
@@ -29,7 +29,7 @@ services:
       --event-scheduler=ON
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1",
-             "-u", "${DB_USER:-sigab_user}", "-p${DB_PASS:-sigab_pass_2026}"]
+             "-u", "${DB_USER:-sigab_user}", "-p${DB_PASS:?DB_PASS requerida}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -48,7 +48,7 @@ services:
       SIGAB_DB_HOST: mysql
       SIGAB_DB_PORT: 3306
       SIGAB_DB_USER: ${DB_USER:-sigab_user}
-      SIGAB_DB_PASS: ${DB_PASS:-sigab_pass_2026}
+      SIGAB_DB_PASS: ${DB_PASS:?DB_PASS requerida}
       SIGAB_DB_NAME: ${DB_NAME:-sigab}
       SIGAB_UPLOAD_DIR: /app/static/uploads
       SIGAB_JWT_SECRET: ${SIGAB_JWT_SECRET:-dev-secret-CAMBIAR-EN-PRODUCCION}

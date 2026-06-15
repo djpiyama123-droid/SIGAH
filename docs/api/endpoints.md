@@ -16,7 +16,7 @@
 
 **Login — Request:**
 ```json
-{ "matricula": "ADMIN001", "password": "sigab_admin_2026" }
+{ "matricula": "ADMIN001", "password": "${ADMIN_PASSWORD}" }
 ```
 
 **Login — Response:**

@@ -82,7 +82,7 @@ O simplemente: abre **Chrome** y ve a `http://localhost:5173`
 
 ```
 Matrícula: ADMIN001
-Password : sigab_admin_2026
+Password : ${ADMIN_PASSWORD}
 ```
 
 Pulsa **Enter** → debes aterrizar en el Dashboard con KPIs.

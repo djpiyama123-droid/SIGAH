@@ -19,7 +19,7 @@ from config import DB_CONFIG
 
 
 MATRICULA = os.getenv("SIGAB_ADMIN_MATRICULA", "ADMIN001")
-PASSWORD = os.getenv("SIGAB_ADMIN_PASSWORD", "sigab_admin_2026")
+PASSWORD = os.environ["SIGAB_ADMIN_PASSWORD"]
 NOMBRE = os.getenv("SIGAB_ADMIN_NOMBRE", "Administrador SIGAB")
 EMAIL = os.getenv("SIGAB_ADMIN_EMAIL", "admin@hgr1.imss.gob.mx")
 

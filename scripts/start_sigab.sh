@@ -21,7 +21,7 @@ FRONTEND_DIR="$PROJECT_DIR/sigab-frontend"
 BOT_DIR="$PROJECT_DIR/sigab-bot"
 
 DB_USER="${DB_USER:-sigab_user}"
-DB_PASS="${DB_PASS:-sigab_pass_2026}"
+DB_PASS="${DB_PASS:?Define DB_PASS antes de ejecutar (export DB_PASS=...)}"
 DB_NAME="${DB_NAME:-sigab}"
 
 CYAN='\033[0;36m'

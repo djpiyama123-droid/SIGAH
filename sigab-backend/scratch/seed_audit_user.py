@@ -16,7 +16,7 @@ async def seed():
                 print("El usuario 'sigab_user' ya existe.")
                 return
             
-            ph = hash_password("sigab_pass_2026")
+            ph = hash_password(os.environ["SIGAB_AUDIT_PASSWORD"])
             await cur.execute(
                 "INSERT INTO usuarios (nombre, matricula, rol, activo, password_hash) VALUES (%s, %s, %s, %s, %s)",
                 ("Usuario SIGAB Audit", "sigab_user", "admin", 1, ph)
