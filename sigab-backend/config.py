@@ -2,7 +2,7 @@
 config.py — Variables de configuración centralizadas del backend SIGAB.
 
 Todas las configuraciones se leen de variables de entorno con prefijo SIGAB_*.
-Se proporcionan valores por defecto para desarrollo local.
+Las credenciales (SIGAB_DB_PASS) son OBLIGATORIAS: no hay default hardcodeado.
 
 Secciones:
   - DB_CONFIG:         Conexión MySQL (host, port, user, pass, db)
@@ -19,7 +19,7 @@ DB_CONFIG = {
     "host": os.getenv("SIGAB_DB_HOST", "127.0.0.1"),
     "port": int(os.getenv("SIGAB_DB_PORT", 3306)),
     "user": os.getenv("SIGAB_DB_USER", "sigab_user"),
-    "password": os.getenv("SIGAB_DB_PASS", "sigab_pass_2026"),
+    "password": os.environ["SIGAB_DB_PASS"],
     "db": os.getenv("SIGAB_DB_NAME", "sigab"),
     "autocommit": True,
 }

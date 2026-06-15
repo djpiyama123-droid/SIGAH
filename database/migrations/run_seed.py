@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Run seed data for SIGAB HGR No.1 zones and equipment."""
+import os
 import pymysql
 
 conn = pymysql.connect(
     host='127.0.0.1', port=3306, user='sigab_user',
-    password='sigab_pass_2026', db='sigab', autocommit=True, charset='utf8mb4'
+    password=os.environ["DB_PASS"], db='sigab', autocommit=True, charset='utf8mb4'
 )
 cur = conn.cursor()
 

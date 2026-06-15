@@ -191,8 +191,8 @@ npm run dev
 
 | Matrícula | Contraseña | Rol |
 |-----------|-----------|-----|
-| `ADMIN001` | `sigab_admin_2026` | Administrador |
-| `99024980` | `sigab_admin_2026` | Jefe de Conservación |
+| `ADMIN001` | `${ADMIN_PASSWORD}` | Administrador |
+| `99024980` | `${ADMIN_PASSWORD}` | Jefe de Conservación |
 
 ---
 

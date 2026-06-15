@@ -24,7 +24,7 @@
 | ☐ | Backend activo en la Asus: `http://localhost:8000/health` → `{"status":"ok"}` |
 | ☐ | Frontend activo en la Asus: `http://localhost:5173` abierto en Chrome (pestaña fija) |
 | ☐ | Ollama corriendo en la Asus: `curl http://localhost:11434/api/tags` responde con modelos |
-| ☐ | Sesión iniciada con **ADMIN001 / sigab_admin_2026** (ya logueado antes de llegar) |
+| ☐ | Sesión iniciada con **ADMIN001 / ${ADMIN_PASSWORD}** (ya logueado antes de llegar) |
 | ☐ | Documentos abiertos en pestañas:<br>• `ESTUDIOS_ECONOMICOS/SIGAB_Resumen_Ejecutivo_Carlos_Oswaldo.pdf` (impreso + digital)<br>• `ESTUDIOS_ECONOMICOS/SIGAB_Modelo_Financiero.xlsx`<br>• `SIGAB_DocInversionista_v3_Template.docx`<br>• `SIGAB_Presentacion_Ejecutiva.pdf`<br>• Este guion |
 | ☐ | **3 copias impresas del Resumen Ejecutivo** (una para Carlos, dos de respaldo) |
 | ☐ | USB con toda la documentación (por si Carlos quiere llevarse copia digital) |
@@ -36,7 +36,7 @@
 **Credenciales para demo (no compartir):**
 ```
 Matrícula: ADMIN001
-Password : sigab_admin_2026
+Password : ${ADMIN_PASSWORD}
 URL      : http://localhost:5173
 ```
 
@@ -63,7 +63,7 @@ URL      : http://localhost:5173
 ### 2.1 — Login e identidad del sistema (1 min)
 - Abrir `http://localhost:5173`
 - **Destacar:** pantalla de login con branding IMSS, matrícula como identificador (no email)
-- Ingresar `ADMIN001` / `sigab_admin_2026` → Dashboard
+- Ingresar `ADMIN001` / `${ADMIN_PASSWORD}` → Dashboard
 
 ### 2.2 — Dashboard & KPIs (2 min)
 - Pestaña **Dashboard**
