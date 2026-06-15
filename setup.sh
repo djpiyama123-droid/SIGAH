@@ -16,6 +16,7 @@ SIGAB_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Define estas variables por export o en un .env antes de ejecutar.
 : "${DB_ROOT_PASS:?Define DB_ROOT_PASS antes de ejecutar (export DB_ROOT_PASS=...)}"
 : "${DB_PASS:?Define DB_PASS antes de ejecutar (export DB_PASS=...)}"
+: "${SIGAB_JWT_SECRET:?Define SIGAB_JWT_SECRET antes de ejecutar (export SIGAB_JWT_SECRET=...)}"
 
 echo -e "${GREEN}╔════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║   SIGAB — Instalación Automática           ║${NC}"
@@ -52,7 +53,7 @@ fi
 echo -e "${YELLOW}[4/9] Configurando bases de datos...${NC}"
 sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$DB_ROOT_PASS';" 2>/dev/null || true
 
-mysql -u root -p$DB_ROOT_PASS -e "
+mysql -u root -p"$DB_ROOT_PASS" -e "
 CREATE DATABASE IF NOT EXISTS sigab CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS dummyequipomedicoimss CHARACTER SET utf8mb3;
 CREATE USER IF NOT EXISTS 'sigab_user'@'localhost' IDENTIFIED BY '$DB_PASS';
@@ -72,28 +73,28 @@ cd "$SIGAB_DIR"
 
 # Esquema fresco de SIGAB
 if [ -f database/sigab_schema_fresh.sql ]; then
-    mysql -u sigab_user -p$DB_PASS sigab < database/sigab_schema_fresh.sql 2>/dev/null
+    mysql -u sigab_user -p"$DB_PASS" sigab < database/sigab_schema_fresh.sql 2>/dev/null
     echo "  OK: Esquema SIGAB importado"
 fi
 
 # Migraciones
 for migration in database/migrations/*.sql; do
     if [ -f "$migration" ]; then
-        mysql -u sigab_user -p$DB_PASS sigab < "$migration" 2>/dev/null || true
+        mysql -u sigab_user -p"$DB_PASS" sigab < "$migration" 2>/dev/null || true
         echo "  OK: Migración $(basename $migration)"
     fi
 done
 
 # Seed data
 if [ -f database/seed_data.sql ]; then
-    mysql -u sigab_user -p$DB_PASS sigab < database/seed_data.sql 2>/dev/null || true
+    mysql -u sigab_user -p"$DB_PASS" sigab < database/seed_data.sql 2>/dev/null || true
 fi
 
 # BD real del hospital (si existe el archivo)
 BD_REAL=$(find "$SIGAB_DIR" -name "BaseDeDatos*.sql" -o -name "basededatos*.sql" 2>/dev/null | head -1)
 if [ -n "$BD_REAL" ]; then
     echo "  Importando BD real: $(basename $BD_REAL)"
-    mysql -u sigab_user -p$DB_PASS dummyequipomedicoimss < "$BD_REAL" 2>/dev/null || true
+    mysql -u sigab_user -p"$DB_PASS" dummyequipomedicoimss < "$BD_REAL" 2>/dev/null || true
     echo "  OK: BD real importada"
 fi
 
