@@ -74,6 +74,23 @@ Migraciones incrementales en `database/migrations/` (004-010), SQL plano aplicad
 - `.claude/skills/ui-ux-pro-max` — invocar esta skill al trabajar en páginas/componentes del frontend (rediseños, accesibilidad, nuevos módulos con UI). Paleta: azul IMSS `#006CB7`, emerald biomédico, alertas amber/red; tipografía Inter + Source Sans Pro.
 - CI: `.github/workflows/deploy.yml` despliega por SSH al VPS en cada push a `main`/`master` (rebuild de Docker Compose + frontend). Un push a main **despliega a producción**.
 
+## Principios de IA Agéntica (Copilot, OCR y automatizaciones)
+
+SIGAB corre IA en producción hospitalaria, no en demo. Al trabajar en `gemma_service`, `ocr_service`, `intake_graph`, `routes/copilot.py` o cualquier automatización nueva con agentes, aplicar estos conceptos anclados al código existente:
+
+1. **Harness engineering** — el entorno del agente es el edge on-premise: Ollama en `:11434` dentro del ThinkCentre, sin salida de datos del hospital salvo los fallbacks cloud explícitos (MiniMax, Gemini). No agregar llamadas externas fuera de esa superficie.
+2. **Loop engineering** — toda llamada a IA lleva condición de corte: probe al edge con `SIGAB_AI_PROBE_TIMEOUT` (3 s) antes de caer a MiniMax. Nada de reintentos indefinidos contra Ollama.
+3. **Context engineering** — al Copilot se le pasa solo el contexto del equipo/orden en cuestión, no volcados completos de la base; mantener los prompts de `gemma_service` acotados.
+4. **Tool design** — el sistema es tan seguro como el peor edge case de sus herramientas: el OCR valida con umbrales (`SIGAB_OCR_CONFIDENCE` 0.85, mínimo de palabras) antes de aceptar una extracción.
+5. **Memory architecture** — la IA no persiste memoria propia: todo lo que deba recordarse se escribe en MySQL vía los flujos normales (órdenes, trazabilidad), auditado como cualquier mutación.
+6. **Orchestration patterns** — patrón de agente único con fallback en cascada (Ollama → MiniMax); si se agregan subagentes o pipelines (p. ej. `intake_graph`), documentar sus modos de fallo propios.
+7. **Guardrails & permissions** — la IA nunca muta estado clínico directamente: las transiciones pasan por los dicts `TRANSICIONES` y los permisos JWT igual que un usuario; `SIGAB_DISABLE_COPILOT=1` es el kill-switch del módulo completo.
+8. **Evals** — la salida de IA no se prueba como función pura: los tests (`test_ai_provider.py`) validan la lógica de selección de proveedor y fallback con mocks; extracciones OCR se evalúan contra el umbral de confianza, no con asserts exactos.
+9. **Human-in-the-loop** — las decisiones clínicas y de estado de equipo son siempre humanas: el Copilot sugiere diagnósticos y el OCR pre-llena formularios, pero un técnico confirma antes de guardar. No automatizar ese paso.
+10. **Observability & tracing** — toda acción derivada de IA que mute datos queda en el audit trail SHA-256 (`AuditService`), con folio ISO 8601; ante un fallo se inspecciona esa cadena, no se adivina.
+
+La madurez está en los puntos 7-10: cualquier cambio a los servicios de IA debe explicar su impacto en guardrails, validación, confirmación humana y auditoría.
+
 ## Convenciones
 
 - Textos de UI y mensajes de error en español mexicano; notificaciones con `toast.success/error/loading`.
